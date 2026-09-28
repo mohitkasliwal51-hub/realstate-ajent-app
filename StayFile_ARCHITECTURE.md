@@ -115,7 +115,7 @@
 
 The database architecture is 100% frozen and documented:
 
-1. 📜 **[`database/schema.sql`](file:///c:/Users/Wissen/Desktop/tech%20stack%20training/realstate-ajent-app/database/schema.sql)**  
+1. 📜 **[`database/init-scripts/01-init.sql`](file:///c:/Users/Wissen/Desktop/tech%20stack%20training/realstate-ajent-app/database/init-scripts/01-init.sql)**  
    *Single standalone master PostgreSQL initialization script containing all 16 tables, enums, triggers, composite indexes, and RLS policies.*
 
 2. 📘 **[`database/DATA_MODEL.md`](file:///c:/Users/Wissen/Desktop/tech%20stack%20training/realstate-ajent-app/database/DATA_MODEL.md)**  
@@ -128,7 +128,7 @@ The database architecture is 100% frozen and documented:
 To initialize the PostgreSQL / Supabase database in 1 click:
 
 1. Open Supabase **SQL Editor** or your PostgreSQL client (DBeaver / pgAdmin / psql).
-2. Copy the contents of [`database/schema.sql`](file:///c:/Users/Wissen/Desktop/tech%20stack%20training/realstate-ajent-app/database/schema.sql).
+2. Copy the contents of [`database/init-scripts/01-init.sql`](file:///c:/Users/Wissen/Desktop/tech%20stack%20training/realstate-ajent-app/database/init-scripts/01-init.sql).
 3. Execute the script.
 
 All 16 tables, custom types, automated unit-lease status triggers, receipt sequence generators, and multi-tenant indexes will be created automatically.
