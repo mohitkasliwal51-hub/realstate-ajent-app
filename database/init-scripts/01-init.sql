@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Links to auth.users or Spring Boot User ID
     organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
+    password TEXT,                                   -- BCrypt hashed password (nullable for OAuth / SSO users)
     phone TEXT,
     full_name TEXT NOT NULL,
     avatar_url TEXT,

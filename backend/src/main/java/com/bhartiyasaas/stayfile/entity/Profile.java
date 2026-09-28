@@ -31,6 +31,9 @@ public class Profile {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "password")
+    private String password;
+
     private String phone;
 
     @Column(name = "full_name", nullable = false)
