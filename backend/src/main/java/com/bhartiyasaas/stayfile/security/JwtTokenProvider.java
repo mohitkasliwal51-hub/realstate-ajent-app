@@ -54,8 +54,21 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(UserDetails userDetails) {
+        if (userDetails instanceof SecurityUser securityUser) {
+            return generateToken(securityUser);
+        }
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, userDetails.getUsername());
+    }
+
+    public String generateToken(SecurityUser securityUser) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("profileId", securityUser.getProfileId());
+        claims.put("organizationId", securityUser.getOrganizationId());
+        if (securityUser.getProfile().getRole() != null) {
+            claims.put("role", securityUser.getProfile().getRole().name());
+        }
+        return createToken(claims, securityUser.getUsername());
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
