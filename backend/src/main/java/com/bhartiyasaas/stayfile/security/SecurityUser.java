@@ -40,7 +40,7 @@ public class SecurityUser implements UserDetails {
     }
 
     public UUID getOrganizationId() {
-        return profile.getOrganization() != null ? profile.getOrganization().getId() : null;
+        return profile.getOrganizationId();
     }
 
     @Override
