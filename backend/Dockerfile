@@ -32,7 +32,7 @@ RUN addgroup -g 1001 -S spring && \
 WORKDIR /app
 
 # Copy the built JAR from builder stage
-COPY --from=builder /app/target/todo-app-*.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 
 # Change ownership to spring user
 RUN chown -R spring:spring /app
