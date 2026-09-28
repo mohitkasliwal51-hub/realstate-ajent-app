@@ -1,6 +1,6 @@
-# 🏡 BrokerProp - Database Data Model Documentation
+# 🏡 BrokerProp - Database Data Model Documentation (LOCKED & FINALIZED v3)
 
-This document provides a comprehensive technical reference for the **BrokerProp** PostgreSQL database schema. It details every table, attribute, data type, integrity constraint, and realistic sample data for multi-tenant property & PG management.
+This document provides a comprehensive technical reference for the **BrokerProp** PostgreSQL database schema. It details every table, attribute, data type, integrity constraint, automated DB trigger, and realistic sample data for multi-tenant property & PG management.
 
 ---
 
@@ -13,12 +13,17 @@ This document provides a comprehensive technical reference for the **BrokerProp*
 5. [4. properties](#4-properties)
 6. [5. units](#5-units)
 7. [6. tenants](#6-tenants)
-8. [7. leases](#7-leases)
-9. [8. receipts](#8-receipts)
-10. [9. police_verifications](#9-police_verifications)
-11. [10. esign_transactions](#10-esign_transactions)
-12. [11. maintenance_tickets](#11-maintenance_tickets)
-13. [12. integration_logs](#12-integration_logs)
+8. [7. agreement_templates](#7-agreement_templates)
+9. [8. leases](#8-leases)
+10. [9. receipts](#9-receipts)
+11. [10. bbps_transactions](#10-bbps_transactions)
+12. [11. police_verifications](#11-police_verifications)
+13. [12. esign_transactions](#12-esign_transactions)
+14. [13. whatsapp_logs](#13-whatsapp_logs)
+15. [14. property_leads](#14-property_leads)
+16. [15. maintenance_tickets](#15-maintenance_tickets)
+17. [16. integration_logs](#16-integration_logs)
+18. [Automated Triggers & Multi-Tenant Performance Indexes](#automated-triggers--multi-tenant-performance-indexes)
 
 ---
 
@@ -34,6 +39,12 @@ This document provides a comprehensive technical reference for the **BrokerProp*
 | `receipt_type` | `SECURITY_DEPOSIT`, `RENT_PAYMENT`, `UTILITY_BILL`, `MAINTENANCE`, `TOKEN_BOOKING`, `OTHER` | Purpose of financial payment receipt |
 | `payment_mode` | `UPI`, `BANK_TRANSFER`, `CASH`, `CHEQUE`, `RAZORPAY_ONLINE`, `OTHER` | Payment instrument used |
 | `verification_status` | `NOT_STARTED`, `PENDING`, `SUBMITTED`, `VERIFIED`, `REJECTED` | Status for Police Verification / KYC checks |
+| `whatsapp_direction` | `INBOUND`, `OUTBOUND` | Direction of WhatsApp message |
+| `whatsapp_msg_type` | `TEXT`, `TEMPLATE`, `DOCUMENT`, `IMAGE`, `INTERACTIVE`, `LOCATION` | Type of WhatsApp payload |
+| `whatsapp_status` | `SENT`, `DELIVERED`, `READ`, `FAILED` | Delivery receipt state |
+| `bbps_status` | `BILL_FETCHED`, `PAYMENT_INITIATED`, `SUCCESS`, `FAILED` | State of BBPS Utility payment |
+| `lead_source` | `WHATSAPP`, `WEBSITE`, `NINETYNINE_ACRES`, `NOBROKER`, `MAGICBRICKS`, `DIRECT` | Acquisition origin of prospective lead |
+| `lead_status` | `NEW`, `CONTACTED`, `VISITED`, `CONVERTED`, `LOST` | Lead conversion pipeline state |
 
 ---
 
@@ -97,6 +108,8 @@ Stores white-label branding, owner legal credentials, and financial payout detai
 | `bank_name` | `TEXT` | - | Bank Name | `"ICICI Bank"` |
 | `account_holder_name`| `TEXT` | - | Account Holder Name | `"Sunshine Hospitality Pvt Ltd"` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom branding metadata | `{"whatsapp_welcome_msg": "Welcome to Sunshine Stays!"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
@@ -123,6 +136,8 @@ Stores buildings, complexes, or flat properties owned/managed by the agency.
 | `description` | `TEXT` | - | Detailed description | `"Premium Co-living space for IT professionals and students."` |
 | `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Property listing active state| `true` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom property flags | `{"ev_charging_available": true}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
@@ -140,14 +155,17 @@ Stores individual PG rooms, bed slots, or full flat units inside a property.
 | `monthly_rent` | `DECIMAL(10,2)`| `NOT NULL` | Monthly Rent Amount (INR) | `12000.00` |
 | `security_deposit`| `DECIMAL(10,2)`| `NOT NULL` | Security Deposit Amount (INR) | `24000.00` |
 | `status` | `unit_status`| `NOT NULL`, `DEFAULT 'AVAILABLE'` | Availability Status | `"AVAILABLE"` |
+| `current_lease_id`| `UUID` | `FOREIGN KEY` ➔ `leases(id)` (`ON DELETE SET NULL`) | Fast O(1) active lease lookup | `"06dd...0f77"` |
 | `amenities` | `JSONB` | `DEFAULT '[]'::jsonb` | Room Specific Amenities | `["Attached Balcony", "Study Desk", "Personal Locker"]` |
 | `notes` | `TEXT` | - | Internal Notes | `"Corner room with garden view"` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom room variables | `{"meter_type": "SUB_METER"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
 ## 6. `tenants`
-Stores resident profiles, emergency contacts, and verified KYC information.
+Stores resident profiles, emergency contacts, and verified KYC information (with AES-256 / `pgp_sym_encrypt` encryption for document compliance).
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
 | :--- | :--- | :--- | :--- | :--- |
@@ -168,17 +186,37 @@ Stores resident profiles, emergency contacts, and verified KYC information.
 | `emergency_contact_phone`| `TEXT` | - | Emergency Contact Phone | `"+919414012345"` |
 | `emergency_contact_relation`| `TEXT` | - | Relationship | `"Father"` |
 | `id_proof_type` | `TEXT` | `DEFAULT 'Aadhaar'` | Document Type | `"Aadhaar"` |
-| `id_proof_number`| `TEXT` | - | Aadhaar / PAN Number | `"XXXX-XXXX-4921"` |
+| `id_proof_last4` | `VARCHAR(4)`| - | Unencrypted last 4 digits for UI | `"4921"` |
+| `id_proof_number`| `TEXT` | - | Encrypted document ID (AES-256) | `"pgp:encrypted:a8f912..."` |
 | `is_id_verified`| `BOOLEAN` | `DEFAULT FALSE` | Surepass/Digio verification status | `true` |
 | `id_proof_front_url`| `TEXT` | - | Aadhaar Front Scan URL | `"https://cdn.brokerprop.com/docs/t1_aadhaar_front.pdf"` |
 | `id_proof_back_url`| `TEXT` | - | Aadhaar Back Scan URL | `"https://cdn.brokerprop.com/docs/t1_aadhaar_back.pdf"` |
 | `tenant_photo_url`| `TEXT` | - | Passport Photo URL | `"https://cdn.brokerprop.com/docs/t1_photo.jpg"` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom tenant metadata | `{"vehicle_number": "MH-12-AB-1234"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 7. `leases`
-Stores 11-month or custom tenancy agreements, rental terms, and signed agreement document paths.
+## 7. `agreement_templates`
+Stores multi-template configurations for legal rent agreements (e.g. 11-Month PG, Flat Leave & License, Commercial).
+
+| Attribute / Field | Data Type | Constraints | Description | Example Data |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Template ID | `"77aa...1500"` |
+| `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
+| `title` | `TEXT` | `NOT NULL` | Template Name | `"Standard 11-Month PG Agreement"` |
+| `template_type` | `TEXT` | `NOT NULL`, `DEFAULT 'PG_11_MONTH'` | Template Category | `"PG_11_MONTH"` |
+| `content_template`| `TEXT` | `NOT NULL` | Markdown / HTML with Mustache tokens | `"# RENT AGREEMENT\n\nThis agreement is made between {{landlord_name}} and {{tenant_name}}..."` |
+| `is_default` | `BOOLEAN` | `DEFAULT FALSE` | Default selection flag | `true` |
+| `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom template variables | `{"notice_period_default": 30}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
+
+---
+
+## 8. `leases`
+Stores 11-month or custom tenancy agreements, rental terms, template links, and signed agreement document paths.
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
 | :--- | :--- | :--- | :--- | :--- |
@@ -187,6 +225,7 @@ Stores 11-month or custom tenancy agreements, rental terms, and signed agreement
 | `unit_id` | `UUID` | `FOREIGN KEY` ➔ `units(id)` | Assigned Unit / Bed | `"e4bb...0d55"` |
 | `tenant_id` | `UUID` | `FOREIGN KEY` ➔ `tenants(id)` | Renter / Resident | `"f5cc...0e66"` |
 | `owner_id` | `UUID` | `FOREIGN KEY` ➔ `profiles(id)` | Landlord / Broker | `"b1ee...0a22"` |
+| `agreement_template_id`| `UUID`| `FOREIGN KEY` ➔ `agreement_templates(id)` | Linked Template | `"77aa...1500"` |
 | `start_date` | `DATE` | `NOT NULL` | Tenancy Start Date | `"2026-10-01"` |
 | `end_date` | `DATE` | `NOT NULL` | Tenancy End Date | `"2027-08-31"` |
 | `monthly_rent` | `DECIMAL(10,2)`| `NOT NULL` | Monthly Rent Amount | `12000.00` |
@@ -199,16 +238,18 @@ Stores 11-month or custom tenancy agreements, rental terms, and signed agreement
 | `agreement_pdf_url`| `TEXT` | - | Generated PDF Agreement URL | `"https://cdn.brokerprop.com/agreements/lease_2026_001.pdf"` |
 | `is_esign_completed`| `BOOLEAN`| `DEFAULT FALSE` | Aadhaar OTP e-Sign status | `true` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom lease variables | `{"witness_name": "Suresh Kumar"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 8. `receipts`
-Stores auto-sequenced financial payment receipts for rent, security deposits, and maintenance.
+## 9. `receipts`
+Stores financial payment receipts for rent, security deposits, and maintenance, uniquely scoped per organization.
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Receipt Record ID | `"17ee...1088"` |
-| `receipt_number` | `TEXT` | `UNIQUE`, `NOT NULL` | Auto-Generated Receipt No | `"REC-2026-001001"` |
+| `receipt_number` | `TEXT` | `NOT NULL` | Org-Scoped Receipt Number | `"REC-2026-000001"` |
 | `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
 | `lease_id` | `UUID` | `FOREIGN KEY` ➔ `leases(id)` | Associated Lease | `"06dd...0f77"` |
 | `tenant_id` | `UUID` | `FOREIGN KEY` ➔ `tenants(id)` | Payer Tenant | `"f5cc...0e66"` |
@@ -221,12 +262,41 @@ Stores auto-sequenced financial payment receipts for rent, security deposits, an
 | `period_start` | `DATE` | - | Billing Period Start Date | `"2026-10-01"` |
 | `period_end` | `DATE` | - | Billing Period End Date | `"2026-10-31"` |
 | `notes` | `TEXT` | - | Receipt Remarks | `"Rent for October 2026 paid via UPI"` |
-| `receipt_pdf_url`| `TEXT` | - | Generated PDF Receipt URL | `"https://cdn.brokerprop.com/receipts/REC-2026-001001.pdf"` |
+| `receipt_pdf_url`| `TEXT` | - | Generated PDF Receipt URL | `"https://cdn.brokerprop.com/receipts/REC-2026-000001.pdf"` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom payment payload | `{"razorpay_payment_id": "pay_L8x92aK"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 9. `police_verifications`
+## 10. `bbps_transactions`
+Stores Bharat Bill Payment System (BBPS) utility bill payments (Electricity, Water, Gas via BBPS / Decentro / Razorpay).
+
+| Attribute / Field | Data Type | Constraints | Description | Example Data |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | BBPS Transaction ID | `"88bb...1600"` |
+| `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
+| `tenant_id` | `UUID` | `FOREIGN KEY` ➔ `tenants(id)` | Paying Tenant | `"f5cc...0e66"` |
+| `lease_id` | `UUID` | `FOREIGN KEY` ➔ `leases(id)` | Associated Lease | `"06dd...0f77"` |
+| `biller_id` | `TEXT` | `NOT NULL` | BBPS Biller Code | `"MSEDCL000MAH01"` |
+| `biller_name` | `TEXT` | `NOT NULL` | Utility Provider Name | `"MSEDCL Electricity - Maharashtra"` |
+| `customer_param_name`| `TEXT` | `DEFAULT 'Consumer Number'` | Consumer Number Label | `"Consumer Number"` |
+| `customer_param_value`| `TEXT`| `NOT NULL` | Consumer / Account Number | `"102938475612"` |
+| `amount` | `DECIMAL(10,2)`| `NOT NULL` | Utility Bill Amount (INR) | `1450.00` |
+| `bill_date` | `DATE` | - | Bill Date | `"2026-09-20"` |
+| `due_date` | `DATE` | - | Due Date | `"2026-10-05"` |
+| `payment_date` | `TIMESTAMPTZ`| - | Exact Payment Timestamp | `"2026-10-02T16:20:00Z"` |
+| `status` | `bbps_status`| `NOT NULL`, `DEFAULT 'BILL_FETCHED'`| Transaction Status | `"SUCCESS"` |
+| `bbps_reference_id`| `TEXT` | - | BBPS Official Reference ID | `"BBPSMH202610029812"` |
+| `razorpay_payment_id`| `TEXT` | - | Payment Gateway ID | `"pay_L9y91bM"` |
+| `receipt_pdf_url`| `TEXT` | - | Utility Payment Receipt URL | `"https://cdn.brokerprop.com/bbps/bbps_rec_88bb.pdf"` |
+| `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom payload metadata | `{}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
+
+---
+
+## 11. `police_verifications`
 Stores tenant intimation forms and police station verification tracking.
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
@@ -242,11 +312,12 @@ Stores tenant intimation forms and police station verification tracking.
 | `submission_date`| `DATE` | - | Date Submitted to Police | `"2026-10-03"` |
 | `application_reference_no`| `TEXT`| - | Police Portal Ack Number | `"POL-MH-2026-98123"` |
 | `verification_pdf_url`| `TEXT` | - | Generated Form / Ack PDF URL | `"https://cdn.brokerprop.com/police/pv_form_001.pdf"` |
-| `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom police intimation metadata | `{"police_chalan_verified": true}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 10. `esign_transactions`
+## 12. `esign_transactions`
 Stores e-Stamp paper procurement details and Aadhaar OTP e-Sign transaction audit logs (Digio/Leegality).
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
@@ -261,10 +332,54 @@ Stores e-Stamp paper procurement details and Aadhaar OTP e-Sign transaction audi
 | `status` | `TEXT` | `NOT NULL` | Transaction Status | `"SIGNED"` |
 | `signed_pdf_url` | `TEXT` | - | Digitally Signed PDF URL | `"https://cdn.brokerprop.com/signed/lease_signed_001.pdf"` |
 | `audit_trail_json`| `JSONB` | `DEFAULT '{}'::jsonb` | Legal Audit Trail Response | `{"signer_ip": "103.21.12.4", "signed_at": "2026-10-02T14:32:00Z"}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 11. `maintenance_tickets`
+## 13. `whatsapp_logs`
+Stores Meta WhatsApp Business Cloud API communication audit trail and delivery receipts.
+
+| Attribute / Field | Data Type | Constraints | Description | Example Data |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Log ID | `"99cc...1700"` |
+| `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
+| `tenant_id` | `UUID` | `FOREIGN KEY` ➔ `tenants(id)` (`ON DELETE SET NULL`)| Tenant (Nullable for leads) | `"f5cc...0e66"` |
+| `wamid` | `TEXT` | - | Meta WhatsApp Message ID | `"wamid.HBgMOTE5ODc2NTQzMjEwFQIAERgSQ0E1N..."` |
+| `phone_number` | `TEXT` | `NOT NULL` | Recipient Phone Number | `"+919812345678"` |
+| `direction` | `whatsapp_direction`| `NOT NULL`, `DEFAULT 'OUTBOUND'` | Message Flow Direction | `"OUTBOUND"` |
+| `type` | `whatsapp_msg_type`| `NOT NULL`, `DEFAULT 'TEXT'` | Message Type | `"TEMPLATE"` |
+| `message_body` | `TEXT` | - | Rendered Message Text | `"Hi Aarav, your rent receipt REC-2026-001 is attached."` |
+| `template_name` | `TEXT` | - | WhatsApp Template Name | `"rent_due_reminder_v1"` |
+| `status` | `whatsapp_status`| `NOT NULL`, `DEFAULT 'SENT'` | Delivery Status | `"READ"` |
+| `error_details` | `JSONB` | `DEFAULT '{}'::jsonb` | Delivery failure error details | `{}` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
+
+---
+
+## 14. `property_leads`
+Stores CRM enquiries and leads captured via WhatsApp, white-label website, 99acres, or NoBroker.
+
+| Attribute / Field | Data Type | Constraints | Description | Example Data |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Lead ID | `"aa11...1800"` |
+| `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
+| `property_id` | `UUID` | `FOREIGN KEY` ➔ `properties(id)` | Target Property | `"d3aa...0c44"` |
+| `unit_id` | `UUID` | `FOREIGN KEY` ➔ `units(id)` (`ON DELETE SET NULL`) | Specific Room / Bed Slot | `"e4bb...0d55"` |
+| `name` | `TEXT` | `NOT NULL` | Prospective Lead Name | `"Vikram Singh"` |
+| `phone` | `TEXT` | `NOT NULL` | Contact Number | `"+919876501234"` |
+| `email` | `TEXT` | - | Contact Email | `"vikram.s@gmail.com"` |
+| `source` | `lead_source`| `NOT NULL`, `DEFAULT 'WHATSAPP'` | Acquisition Channel | `"WHATSAPP"` |
+| `status` | `lead_status`| `NOT NULL`, `DEFAULT 'NEW'` | CRM Funnel State | `"VISITED"` |
+| `notes` | `TEXT` | - | Lead Notes / Preference | `"Looking for Double Sharing room near Vashi"` |
+| `follow_up_date`| `TIMESTAMPTZ`| - | Scheduled Follow-up | `"2026-10-05T11:00:00Z"` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
+
+---
+
+## 15. `maintenance_tickets`
 Stores resident maintenance requests (e.g. Plumbing, Electrical, WiFi).
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
@@ -279,11 +394,13 @@ Stores resident maintenance requests (e.g. Plumbing, Electrical, WiFi).
 | `priority` | `TEXT` | `DEFAULT 'MEDIUM'` | Priority Level | `"HIGH"` |
 | `status` | `TEXT` | `DEFAULT 'OPEN'` | Resolution State | `"IN_PROGRESS"` |
 | `images` | `TEXT[]` | `DEFAULT '{}'` | Photo Attachments | `["https://cdn.brokerprop.com/complaints/c1_geyser.jpg"]` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 12. `integration_logs`
-Stores audit logs for third-party API interactions (Surepass Aadhaar/PAN, Razorpay Payments, Meta WhatsApp API).
+## 16. `integration_logs`
+Stores audit logs for third-party API interactions (Surepass Aadhaar/PAN, Razorpay Payments, Meta WhatsApp API, Decentro BBPS).
 
 | Attribute / Field | Data Type | Constraints | Description | Example Data |
 | :--- | :--- | :--- | :--- | :--- |
@@ -296,10 +413,20 @@ Stores audit logs for third-party API interactions (Surepass Aadhaar/PAN, Razorp
 | `status_code` | `INTEGER` | - | HTTP Response Code | `200` |
 | `execution_time_ms`| `INTEGER`| - | API Roundtrip Latency (ms) | `342` |
 | `error_message` | `TEXT` | - | Error Message if failed | `null` |
-| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Execution Timestamp | `"2026-10-02T14:30:12Z"` |
+| `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
+| `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |
 
 ---
 
-## 🔒 Security & Data Isolation Summary
-1. **Multi-Tenancy Isolation**: Enforced across every single table via `organization_id` and `owner_id` columns linked to PostgreSQL Row Level Security (RLS) policies.
-2. **Audit Trails**: Every modification automatically updates `updated_at` timestamps via PostgreSQL triggers, and financial/e-Sign API calls are logged in `integration_logs` and `esign_transactions`.
+## Automated Triggers & Multi-Tenant Performance Indexes
+
+1. **Automated Unit Lease Status Sync Trigger (`trg_sync_unit_lease_status`)**:
+   - When a lease becomes `ACTIVE`, Postgres automatically marks `units.status = 'OCCUPIED'` and sets `units.current_lease_id = NEW.id`.
+   - When a lease becomes `EXPIRED`, `TERMINATED`, or `CANCELLED`, Postgres automatically frees the unit: `units.status = 'AVAILABLE'` and `units.current_lease_id = NULL`.
+2. **Organization-Scoped Unique Receipts (`uniq_receipt_number_per_org`)**:
+   - `CREATE UNIQUE INDEX uniq_receipt_number_per_org ON receipts(organization_id, receipt_number);`
+3. **High-Speed Composite Indexes**:
+   - `idx_leases_org_status` ON `leases(organization_id, status)`
+   - `idx_units_property_status` ON `units(property_id, status)`
+   - `idx_receipts_org_tenant` ON `receipts(organization_id, tenant_id)`
+   - `idx_whatsapp_logs_org_phone` ON `whatsapp_logs(organization_id, phone_number)`
