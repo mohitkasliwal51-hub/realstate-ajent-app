@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_NAME="spring-boot-todo"
+PROJECT_NAME="stayfile-app"
 COMPOSE_FILE="docker-compose.yml"
 COMPOSE_FILE_PROD="docker-compose.prod.yml"
 
@@ -183,7 +183,7 @@ clean_all() {
 connect_db_shell() {
     print_info "Connecting to PostgreSQL shell..."
     COMPOSE_CMD=$(get_compose_cmd)
-    $COMPOSE_CMD -f $COMPOSE_FILE exec database psql -U todouser -d todoapp
+    $COMPOSE_CMD -f $COMPOSE_FILE exec database psql -U postgres -d stayfile
 }
 
 connect_backend_shell() {
