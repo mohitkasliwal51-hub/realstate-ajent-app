@@ -14,6 +14,7 @@ import com.bhartiyasaas.stayfile.mapper.PropertyMapper;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ProfileRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
+import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyService;
 
 import java.util.List;
@@ -28,10 +29,12 @@ public class PropertyServiceImpl implements PropertyService {
     private final OrganizationRepository organizationRepository;
     private final ProfileRepository profileRepository;
     private final PropertyMapper propertyMapper;
+    private final TenantAccessService tenantAccessService;
 
     @Override
     @Transactional
     public PropertyResponse createProperty(PropertyCreateRequest request) {
+        tenantAccessService.validateUserOrganization(request.getOrganizationId());
         Organization organization = organizationRepository.findById(request.getOrganizationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
 
@@ -54,6 +57,7 @@ public class PropertyServiceImpl implements PropertyService {
     @Override
     @Transactional(readOnly = true)
     public PropertyResponse getPropertyById(UUID id, UUID organizationId) {
+        tenantAccessService.validateUserOrganization(organizationId);
         Property property = propertyRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
         return propertyMapper.toResponse(property);
@@ -62,6 +66,7 @@ public class PropertyServiceImpl implements PropertyService {
     @Override
     @Transactional(readOnly = true)
     public List<PropertyResponse> getPropertiesByOrganization(UUID organizationId) {
+        tenantAccessService.validateUserOrganization(organizationId);
         return propertyMapper.toResponseList(propertyRepository.findByOrganizationId(organizationId));
     }
 

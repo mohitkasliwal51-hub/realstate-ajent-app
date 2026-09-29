@@ -7,6 +7,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class TenantAccessService {
 
@@ -31,6 +33,23 @@ public class TenantAccessService {
             return true;
         } catch (AccessDeniedException e) {
             return false;
+        }
+    }
+
+    public void validateUserOrganization(UUID requestOrganizationId) {
+        if (requestOrganizationId == null) {
+            throw new AccessDeniedException("Organization is required");
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof SecurityUser securityUser)) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+        if (securityUser.getProfile().getRole() == UserRole.SUPER_ADMIN) {
+            return;
+        }
+        UUID userOrgId = securityUser.getOrganizationId();
+        if (userOrgId == null || !userOrgId.equals(requestOrganizationId)) {
+            throw new AccessDeniedException("Access denied: You cannot access another organization");
         }
     }
 }

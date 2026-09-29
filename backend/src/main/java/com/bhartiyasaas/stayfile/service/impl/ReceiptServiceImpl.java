@@ -35,6 +35,8 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     @Transactional
     public ReceiptResponse createReceipt(ReceiptCreateRequest request) {
+        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+
         Organization organization = organizationRepository.findById(request.getOrganizationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
 
@@ -47,21 +49,23 @@ public class ReceiptServiceImpl implements ReceiptService {
         Profile owner = profileRepository.findById(request.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
 
-        if (lease.getOrganization() != null && !lease.getOrganization().getId().equals(organization.getId())) {
+        if (lease.getOrganization() == null || !lease.getOrganization().getId().equals(organization.getId())) {
             throw new IllegalArgumentException("Lease does not belong to the specified Organization");
         }
-        if (tenant.getOrganization() != null && !tenant.getOrganization().getId().equals(organization.getId())) {
+        if (tenant.getOrganization() == null || !tenant.getOrganization().getId().equals(organization.getId())) {
             throw new IllegalArgumentException("Tenant does not belong to the specified Organization");
         }
-        if (owner.getOrganization() != null && !owner.getOrganization().getId().equals(organization.getId())) {
+        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organization.getId())) {
             throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
         }
+        if (lease.getTenant() == null || !lease.getTenant().getId().equals(tenant.getId())) {
+            throw new IllegalArgumentException("The specified Tenant does not match the Tenant associated with the Lease");
+        }
 
-        long count = receiptRepository.findByOrganizationId(organization.getId()).size() + 1;
-        String receiptNumber = String.format("REC-%s-%d-%06d",
+        String receiptNumber = String.format("REC-%s-%d-%s",
                 organization.getSlug().toUpperCase(),
                 LocalDate.now().getYear(),
-                count);
+            UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
         Receipt receipt = receiptMapper.toEntity(request);
         receipt.setReceiptNumber(receiptNumber);
@@ -77,6 +81,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     @Transactional(readOnly = true)
     public ReceiptResponse getReceiptById(UUID id, UUID organizationId) {
+        tenantAccessService.validateUserOrganization(organizationId);
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");
@@ -86,6 +91,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     @Transactional(readOnly = true)
     public List<ReceiptResponse> getReceiptsByOrganization(UUID organizationId) {
+        tenantAccessService.validateUserOrganization(organizationId);
         List<Receipt> receipts = receiptRepository.findByOrganizationId(organizationId).stream()
                 .filter(receipt -> tenantAccessService.canAccessTenant(receipt.getTenant(), "payment receipt"))
                 .collect(Collectors.toList());
@@ -96,6 +102,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     @Transactional(readOnly = true)
     public byte[] getReceiptPdf(UUID receiptId, UUID organizationId) {
+        tenantAccessService.validateUserOrganization(organizationId);
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(receiptId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + receiptId));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");

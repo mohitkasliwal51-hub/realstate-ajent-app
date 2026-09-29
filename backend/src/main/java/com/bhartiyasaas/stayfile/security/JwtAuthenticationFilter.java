@@ -56,8 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
-            logger.warn("JWT token validation failed: " + e.getMessage());
+        } catch (io.jsonwebtoken.JwtException | org.springframework.security.core.userdetails.UsernameNotFoundException | org.springframework.security.authentication.DisabledException | IllegalArgumentException e) {
+            logger.warn("JWT token authentication failed: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);
