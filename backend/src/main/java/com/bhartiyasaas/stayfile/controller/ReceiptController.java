@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.bhartiyasaas.stayfile.dto.request.ReceiptCreateRequest;
@@ -23,6 +24,7 @@ public class ReceiptController {
 
     private final ReceiptService receiptService;
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
     public ResponseEntity<ApiResponse<ReceiptResponse>> createReceipt(@Valid @RequestBody ReceiptCreateRequest request) {
         ReceiptResponse response = receiptService.createReceipt(request);
@@ -30,6 +32,7 @@ public class ReceiptController {
                 .body(ApiResponse.success(response, "Receipt generated successfully"));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ReceiptResponse>> getReceiptById(
             @PathVariable UUID id,
@@ -38,6 +41,7 @@ public class ReceiptController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<ReceiptResponse>>> getReceiptsByOrganization(
             @RequestParam UUID organizationId) {
@@ -45,6 +49,7 @@ public class ReceiptController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadReceiptPdf(
             @PathVariable UUID id,

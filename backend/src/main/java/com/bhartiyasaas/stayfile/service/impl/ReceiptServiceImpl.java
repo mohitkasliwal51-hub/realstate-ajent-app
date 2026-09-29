@@ -75,15 +75,28 @@ public class ReceiptServiceImpl implements ReceiptService {
     public ReceiptResponse getReceiptById(UUID id, UUID organizationId) {
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + id));
+        validateTenantOwnership(receipt);
         return mapToResponse(receipt);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ReceiptResponse> getReceiptsByOrganization(UUID organizationId) {
-        return receiptRepository.findByOrganizationId(organizationId).stream()
-                .map(this::mapToResponse)
+        List<Receipt> receipts = receiptRepository.findByOrganizationId(organizationId).stream()
+                .filter(receipt -> {
+                    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth == null || !(auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser)) {
+                        return true;
+                    }
+                    if (securityUser.getProfile().getRole() != com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                        return true;
+                    }
+                    String tenantEmail = receipt.getTenant() != null ? receipt.getTenant().getEmail() : null;
+                    return tenantEmail != null && tenantEmail.equalsIgnoreCase(securityUser.getUsername());
+                })
                 .collect(Collectors.toList());
+
+        return receipts.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -91,7 +104,20 @@ public class ReceiptServiceImpl implements ReceiptService {
     public byte[] getReceiptPdf(UUID receiptId, UUID organizationId) {
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(receiptId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + receiptId));
+        validateTenantOwnership(receipt);
         return pdfGeneratorService.generatePaymentReceiptPdf(receipt);
+    }
+
+    private void validateTenantOwnership(Receipt receipt) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser) {
+            if (securityUser.getProfile().getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                String tenantEmail = receipt.getTenant() != null ? receipt.getTenant().getEmail() : null;
+                if (tenantEmail == null || !tenantEmail.equalsIgnoreCase(securityUser.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only access your own payment receipt");
+                }
+            }
+        }
     }
 
     private ReceiptResponse mapToResponse(Receipt receipt) {

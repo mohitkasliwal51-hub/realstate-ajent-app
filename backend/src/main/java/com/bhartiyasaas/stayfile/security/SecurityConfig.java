@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health", "/actuator/**").permitAll()
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers("/api/v1/properties/public").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.bhartiyasaas.stayfile.dto.request.LeaseCreateRequest;
@@ -23,6 +24,7 @@ public class LeaseController {
 
     private final LeaseService leaseService;
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
     public ResponseEntity<ApiResponse<LeaseResponse>> createLease(@Valid @RequestBody LeaseCreateRequest request) {
         LeaseResponse response = leaseService.createLease(request);
@@ -30,6 +32,7 @@ public class LeaseController {
                 .body(ApiResponse.success(response, "Rent agreement created successfully"));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LeaseResponse>> getLeaseById(
             @PathVariable UUID id,
@@ -38,6 +41,7 @@ public class LeaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<LeaseResponse>>> getLeasesByOrganization(
             @RequestParam UUID organizationId) {
@@ -45,6 +49,7 @@ public class LeaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadLeasePdf(
             @PathVariable UUID id,

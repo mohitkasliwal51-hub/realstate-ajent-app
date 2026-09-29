@@ -75,15 +75,28 @@ public class LeaseServiceImpl implements LeaseService {
     public LeaseResponse getLeaseById(UUID id, UUID organizationId) {
         Lease lease = leaseRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + id));
+        validateTenantOwnership(lease);
         return mapToResponse(lease);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<LeaseResponse> getLeasesByOrganization(UUID organizationId) {
-        return leaseRepository.findByOrganizationId(organizationId).stream()
-                .map(this::mapToResponse)
+        List<Lease> leases = leaseRepository.findByOrganizationId(organizationId).stream()
+                .filter(lease -> {
+                    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth == null || !(auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser)) {
+                        return true;
+                    }
+                    if (securityUser.getProfile().getRole() != com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                        return true;
+                    }
+                    String tenantEmail = lease.getTenant() != null ? lease.getTenant().getEmail() : null;
+                    return tenantEmail != null && tenantEmail.equalsIgnoreCase(securityUser.getUsername());
+                })
                 .collect(Collectors.toList());
+
+        return leases.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -91,7 +104,20 @@ public class LeaseServiceImpl implements LeaseService {
     public byte[] getLeasePdf(UUID leaseId, UUID organizationId) {
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
+        validateTenantOwnership(lease);
         return pdfGeneratorService.generateRentAgreementPdf(lease);
+    }
+
+    private void validateTenantOwnership(Lease lease) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser) {
+            if (securityUser.getProfile().getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                String tenantEmail = lease.getTenant() != null ? lease.getTenant().getEmail() : null;
+                if (tenantEmail == null || !tenantEmail.equalsIgnoreCase(securityUser.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only access your own rent agreement");
+                }
+            }
+        }
     }
 
     private LeaseResponse mapToResponse(Lease lease) {

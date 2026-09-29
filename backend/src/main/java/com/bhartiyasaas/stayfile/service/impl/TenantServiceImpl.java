@@ -77,15 +77,40 @@ public class TenantServiceImpl implements TenantService {
     public TenantResponse getTenantById(UUID id, UUID organizationId) {
         Tenant tenant = tenantRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + id));
+        validateTenantOwnership(tenant);
         return mapToResponse(tenant);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TenantResponse> getTenantsByOrganization(UUID organizationId) {
-        return tenantRepository.findByOrganizationId(organizationId).stream()
-                .map(this::mapToResponse)
+        List<Tenant> tenants = tenantRepository.findByOrganizationId(organizationId).stream()
+                .filter(tenant -> {
+                    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth == null || !(auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser)) {
+                        return true;
+                    }
+                    if (securityUser.getProfile().getRole() != com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                        return true;
+                    }
+                    String tenantEmail = tenant.getEmail();
+                    return tenantEmail != null && tenantEmail.equalsIgnoreCase(securityUser.getUsername());
+                })
                 .collect(Collectors.toList());
+
+        return tenants.stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    private void validateTenantOwnership(Tenant tenant) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser) {
+            if (securityUser.getProfile().getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+                String tenantEmail = tenant.getEmail();
+                if (tenantEmail == null || !tenantEmail.equalsIgnoreCase(securityUser.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only access your own tenant profile");
+                }
+            }
+        }
     }
 
     private TenantResponse mapToResponse(Tenant tenant) {

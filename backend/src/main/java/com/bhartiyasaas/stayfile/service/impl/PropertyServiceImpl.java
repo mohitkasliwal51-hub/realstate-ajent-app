@@ -75,6 +75,15 @@ public class PropertyServiceImpl implements PropertyService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getPublicShowcaseProperties() {
+        return propertyRepository.findAll().stream()
+                .filter(property -> Boolean.TRUE.equals(property.getIsActive()))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private PropertyResponse mapToResponse(Property property) {
         return PropertyResponse.builder()
                 .id(property.getId())
