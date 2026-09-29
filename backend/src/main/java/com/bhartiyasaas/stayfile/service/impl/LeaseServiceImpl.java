@@ -8,7 +8,9 @@ import com.bhartiyasaas.stayfile.dto.request.LeaseCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.LeaseResponse;
 import com.bhartiyasaas.stayfile.entity.*;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
+import com.bhartiyasaas.stayfile.mapper.LeaseMapper;
 import com.bhartiyasaas.stayfile.repository.*;
+import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.LeaseService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 
@@ -27,6 +29,8 @@ public class LeaseServiceImpl implements LeaseService {
     private final ProfileRepository profileRepository;
     private final AgreementTemplateRepository agreementTemplateRepository;
     private final PdfGeneratorService pdfGeneratorService;
+    private final LeaseMapper leaseMapper;
+    private final TenantAccessService tenantAccessService;
 
     @Override
     @Transactional
@@ -43,31 +47,31 @@ public class LeaseServiceImpl implements LeaseService {
         Profile owner = profileRepository.findById(request.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
 
+        if (unit.getOrganization() != null && !unit.getOrganization().getId().equals(organization.getId())) {
+            throw new IllegalArgumentException("Unit does not belong to the specified Organization");
+        }
+        if (tenant.getOrganization() != null && !tenant.getOrganization().getId().equals(organization.getId())) {
+            throw new IllegalArgumentException("Tenant does not belong to the specified Organization");
+        }
+        if (owner.getOrganization() != null && !owner.getOrganization().getId().equals(organization.getId())) {
+            throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
+        }
+
         AgreementTemplate template = null;
         if (request.getAgreementTemplateId() != null) {
             template = agreementTemplateRepository.findById(request.getAgreementTemplateId()).orElse(null);
         }
 
-        Lease lease = Lease.builder()
-                .organization(organization)
-                .unit(unit)
-                .tenant(tenant)
-                .owner(owner)
-                .agreementTemplate(template)
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .monthlyRent(request.getMonthlyRent())
-                .securityDeposit(request.getSecurityDeposit())
-                .rentDueDay(request.getRentDueDay() != null ? request.getRentDueDay() : 5)
-                .noticePeriodDays(request.getNoticePeriodDays() != null ? request.getNoticePeriodDays() : 30)
-                .lockInPeriodMonths(request.getLockInPeriodMonths() != null ? request.getLockInPeriodMonths() : 6)
-                .customClauses(request.getCustomClauses())
-                .status(request.getStatus())
-                .isEsignCompleted(false)
-                .build();
+        Lease lease = leaseMapper.toEntity(request);
+        lease.setOrganization(organization);
+        lease.setUnit(unit);
+        lease.setTenant(tenant);
+        lease.setOwner(owner);
+        lease.setAgreementTemplate(template);
+        lease.setIsEsignCompleted(false);
 
         Lease savedLease = leaseRepository.save(lease);
-        return mapToResponse(savedLease);
+        return leaseMapper.toResponse(savedLease);
     }
 
     @Override
@@ -75,28 +79,18 @@ public class LeaseServiceImpl implements LeaseService {
     public LeaseResponse getLeaseById(UUID id, UUID organizationId) {
         Lease lease = leaseRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + id));
-        validateTenantOwnership(lease);
-        return mapToResponse(lease);
+        tenantAccessService.validateTenantOwnership(lease.getTenant(), "rent agreement");
+        return leaseMapper.toResponse(lease);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<LeaseResponse> getLeasesByOrganization(UUID organizationId) {
         List<Lease> leases = leaseRepository.findByOrganizationId(organizationId).stream()
-                .filter(lease -> {
-                    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                    if (auth == null || !(auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser)) {
-                        return true;
-                    }
-                    if (securityUser.getProfile().getRole() != com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
-                        return true;
-                    }
-                    String tenantEmail = lease.getTenant() != null ? lease.getTenant().getEmail() : null;
-                    return tenantEmail != null && tenantEmail.equalsIgnoreCase(securityUser.getUsername());
-                })
+                .filter(lease -> tenantAccessService.canAccessTenant(lease.getTenant(), "rent agreement"))
                 .collect(Collectors.toList());
 
-        return leases.stream().map(this::mapToResponse).collect(Collectors.toList());
+        return leaseMapper.toResponseList(leases);
     }
 
     @Override
@@ -104,45 +98,7 @@ public class LeaseServiceImpl implements LeaseService {
     public byte[] getLeasePdf(UUID leaseId, UUID organizationId) {
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
-        validateTenantOwnership(lease);
+        tenantAccessService.validateTenantOwnership(lease.getTenant(), "rent agreement");
         return pdfGeneratorService.generateRentAgreementPdf(lease);
-    }
-
-    private void validateTenantOwnership(Lease lease) {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof com.bhartiyasaas.stayfile.security.SecurityUser securityUser) {
-            if (securityUser.getProfile().getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
-                String tenantEmail = lease.getTenant() != null ? lease.getTenant().getEmail() : null;
-                if (tenantEmail == null || !tenantEmail.equalsIgnoreCase(securityUser.getUsername())) {
-                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only access your own rent agreement");
-                }
-            }
-        }
-    }
-
-    private LeaseResponse mapToResponse(Lease lease) {
-        return LeaseResponse.builder()
-                .id(lease.getId())
-                .organizationId(lease.getOrganization().getId())
-                .unitId(lease.getUnit().getId())
-                .unitNumber(lease.getUnit().getUnitNumber())
-                .tenantId(lease.getTenant().getId())
-                .tenantName(lease.getTenant().getFullName())
-                .ownerId(lease.getOwner().getId())
-                .ownerName(lease.getOwner().getFullName())
-                .startDate(lease.getStartDate())
-                .endDate(lease.getEndDate())
-                .monthlyRent(lease.getMonthlyRent())
-                .securityDeposit(lease.getSecurityDeposit())
-                .rentDueDay(lease.getRentDueDay())
-                .noticePeriodDays(lease.getNoticePeriodDays())
-                .lockInPeriodMonths(lease.getLockInPeriodMonths())
-                .customClauses(lease.getCustomClauses())
-                .status(lease.getStatus())
-                .agreementPdfUrl(lease.getAgreementPdfUrl())
-                .isEsignCompleted(lease.getIsEsignCompleted())
-                .createdAt(lease.getCreatedAt())
-                .updatedAt(lease.getUpdatedAt())
-                .build();
     }
 }

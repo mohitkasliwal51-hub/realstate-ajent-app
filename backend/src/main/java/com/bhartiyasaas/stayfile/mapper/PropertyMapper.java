@@ -1,0 +1,29 @@
+package com.bhartiyasaas.stayfile.mapper;
+
+import com.bhartiyasaas.stayfile.dto.request.PropertyCreateRequest;
+import com.bhartiyasaas.stayfile.dto.response.PropertyResponse;
+import com.bhartiyasaas.stayfile.entity.Property;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+public interface PropertyMapper {
+
+    @Mapping(target = "organizationId", source = "organization.id")
+    @Mapping(target = "ownerId", source = "owner.id")
+    PropertyResponse toResponse(Property property);
+
+    List<PropertyResponse> toResponseList(List<Property> properties);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "organization", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "metadata", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "isActive", ignore = true)
+    Property toEntity(PropertyCreateRequest request);
+}
