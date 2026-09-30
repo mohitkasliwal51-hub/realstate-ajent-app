@@ -10,5 +10,6 @@ public interface PropertyService {
     PropertyResponse createProperty(PropertyCreateRequest request);
     PropertyResponse getPropertyById(UUID id, UUID organizationId);
     List<PropertyResponse> getPropertiesByOrganization(UUID organizationId);
+    List<PropertyResponse> getPublicPropertiesByOrganization(UUID organizationId);
     List<PropertyResponse> getPublicShowcaseProperties();
 }

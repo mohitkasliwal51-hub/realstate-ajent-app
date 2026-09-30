@@ -13,6 +13,10 @@ import java.util.UUID;
 @Repository
 public interface UnitRepository extends JpaRepository<Unit, UUID> {
     List<Unit> findByPropertyId(UUID propertyId);
+    List<Unit> findByPropertyIdAndOrganizationId(UUID propertyId, UUID organizationId);
+    List<Unit> findByPropertyIdAndOrganizationIdAndStatus(UUID propertyId, UUID organizationId, UnitStatus status);
     List<Unit> findByOrganizationIdAndStatus(UUID organizationId, UnitStatus status);
     Optional<Unit> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    long countByPropertyIdAndOrganizationIdAndStatus(UUID propertyId, UUID organizationId, UnitStatus status);
+    long countByPropertyIdAndOrganizationId(UUID propertyId, UUID organizationId);
 }

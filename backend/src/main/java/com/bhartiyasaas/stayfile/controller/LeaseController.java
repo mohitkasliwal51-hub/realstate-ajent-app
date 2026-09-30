@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import com.bhartiyasaas.stayfile.dto.request.LeaseCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.LeaseResponse;
+import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 import com.bhartiyasaas.stayfile.service.LeaseService;
 
 import java.util.List;
@@ -47,6 +48,16 @@ public class LeaseController {
             @RequestParam UUID organizationId) {
         List<LeaseResponse> response = leaseService.getLeasesByOrganization(organizationId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<LeaseResponse>> updateLeaseStatus(
+            @PathVariable UUID id,
+            @RequestParam UUID organizationId,
+            @RequestParam LeaseStatus status) {
+        LeaseResponse response = leaseService.updateLeaseStatus(id, organizationId, status);
+        return ResponseEntity.ok(ApiResponse.success(response, "Lease status updated to " + status));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")

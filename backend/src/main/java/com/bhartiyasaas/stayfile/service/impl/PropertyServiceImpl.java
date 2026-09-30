@@ -72,6 +72,12 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PropertyResponse> getPublicPropertiesByOrganization(UUID organizationId) {
+        return propertyMapper.toResponseList(propertyRepository.findByOrganizationIdAndIsActiveTrue(organizationId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PropertyResponse> getPublicShowcaseProperties() {
         return propertyRepository.findAll().stream()
                 .filter(property -> Boolean.TRUE.equals(property.getIsActive()))

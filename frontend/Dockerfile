@@ -1,42 +1,26 @@
-# Multi-stage build for React application
 FROM node:22.12-alpine AS builder
 
-# Set the working directory
 WORKDIR /app
-
-# Copy package files for dependency caching
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci --silent
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage with Nginx
-FROM nginx:1.25-alpine
+FROM node:22.12-alpine AS runner
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init curl
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+USER nextjs
+EXPOSE 3000
 
-# Expose port
-EXPOSE 80
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:80/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
-
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
