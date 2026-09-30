@@ -33,6 +33,7 @@ export default function LeasesPage() {
     monthlyRent: 15000,
     securityDeposit: 30000,
     customClauses: 'Standard 11-Month Rental Agreement with 1 Month Notice Period.',
+    termsAndConditions: '',
   });
 
   const loadData = async () => {
@@ -279,6 +280,18 @@ export default function LeasesPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="w-full flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Terms & Conditions
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter agreement terms and conditions"
+              value={formData.termsAndConditions}
+              onChange={(e) => setFormData({ ...formData, termsAndConditions: e.target.value })}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

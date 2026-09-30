@@ -70,15 +70,17 @@ public class Lease {
     @Column(name = "lock_in_period_months")
     private Integer lockInPeriodMonths = 6;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "custom_clauses", columnDefinition = "jsonb")
+    @Column(name = "custom_clauses", columnDefinition = "text")
     private String customClauses;
+
+    @Column(name = "terms_and_conditions", columnDefinition = "text")
+    private String termsAndConditions;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
-    private LeaseStatus status = LeaseStatus.ACTIVE;
+    private LeaseStatus status = LeaseStatus.DRAFT;
 
     @Column(name = "agreement_pdf_url")
     private String agreementPdfUrl;
@@ -86,6 +88,12 @@ public class Lease {
     @Builder.Default
     @Column(name = "is_esign_completed")
     private Boolean isEsignCompleted = false;
+
+    @Column(name = "esign_transaction_id")
+    private String esignTransactionId;
+
+    @Column(name = "e_stamp_number")
+    private String eStampNumber;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

@@ -296,11 +296,14 @@ CREATE TABLE IF NOT EXISTS public.leases (
     rent_due_day INTEGER NOT NULL DEFAULT 5,         -- Day of month rent is due (e.g. 5th)
     notice_period_days INTEGER DEFAULT 30,
     lock_in_period_months INTEGER DEFAULT 6,
-    custom_clauses JSONB DEFAULT '[]'::jsonb,        -- Array of custom legal clause strings
+    custom_clauses TEXT,                             -- Custom legal clause text
+    terms_and_conditions TEXT,
     
-    status lease_status NOT NULL DEFAULT 'ACTIVE',
+    status lease_status NOT NULL DEFAULT 'DRAFT',
     agreement_pdf_url TEXT,                          -- Stored PDF agreement link
     is_esign_completed BOOLEAN DEFAULT FALSE,
+    esign_transaction_id TEXT,
+    e_stamp_number TEXT,
     
     metadata JSONB DEFAULT '{}'::jsonb,              -- Extra lease variables
     created_at TIMESTAMPTZ DEFAULT NOW(),

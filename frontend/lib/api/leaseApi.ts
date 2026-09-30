@@ -14,7 +14,10 @@ export interface Lease {
   securityDeposit: number;
   status: LeaseStatus;
   isEsignCompleted: boolean;
+  esignTransactionId?: string;
+  eStampNumber?: string;
   customClauses?: string;
+  termsAndConditions?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -30,6 +33,7 @@ export interface LeaseCreatePayload {
   securityDeposit: number;
   agreementTemplateId?: string;
   customClauses?: string;
+  termsAndConditions?: string;
   status?: LeaseStatus;
 }
 

@@ -41,6 +41,10 @@ public class LeaseServiceImpl implements LeaseService {
     public LeaseResponse createLease(LeaseCreateRequest request) {
         tenantAccessService.validateUserOrganization(request.getOrganizationId());
 
+        if (request.getEndDate().isBefore(request.getStartDate())) {
+            throw new IllegalArgumentException("Lease end date must be on or after the start date");
+        }
+
         Organization organization = organizationRepository.findById(request.getOrganizationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
 

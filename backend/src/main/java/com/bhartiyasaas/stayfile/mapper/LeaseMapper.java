@@ -19,6 +19,7 @@ public interface LeaseMapper {
     @Mapping(target = "tenantName", source = "tenant.fullName")
     @Mapping(target = "ownerId", source = "owner.id")
     @Mapping(target = "ownerName", source = "owner.fullName")
+    @Mapping(target = "eStampNumber", source = "EStampNumber")
     LeaseResponse toResponse(Lease lease);
 
     List<LeaseResponse> toResponseList(List<Lease> leases);
@@ -31,6 +32,8 @@ public interface LeaseMapper {
     @Mapping(target = "agreementTemplate", ignore = true)
     @Mapping(target = "agreementPdfUrl", ignore = true)
     @Mapping(target = "isEsignCompleted", ignore = true)
+    @Mapping(target = "esignTransactionId", ignore = true)
+    @Mapping(target = "eStampNumber", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

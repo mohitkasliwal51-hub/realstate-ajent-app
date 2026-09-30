@@ -3,7 +3,6 @@ package com.bhartiyasaas.stayfile.mapper;
 import com.bhartiyasaas.stayfile.dto.request.TenantCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.TenantResponse;
 import com.bhartiyasaas.stayfile.entity.Tenant;
-import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -24,6 +23,7 @@ public interface TenantMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "idProofLast4", ignore = true)
     @Mapping(target = "idProofNumber", ignore = true)
+    @Mapping(target = "kycStatus", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

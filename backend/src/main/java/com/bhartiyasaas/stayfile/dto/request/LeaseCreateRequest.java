@@ -56,6 +56,8 @@ public class LeaseCreateRequest {
 
     private String customClauses;
 
+    private String termsAndConditions;
+
     @Builder.Default
     private LeaseStatus status = LeaseStatus.ACTIVE;
 }

@@ -34,9 +34,12 @@ public class LeaseResponse {
     private Integer noticePeriodDays;
     private Integer lockInPeriodMonths;
     private String customClauses;
+    private String termsAndConditions;
     private LeaseStatus status;
     private String agreementPdfUrl;
     private Boolean isEsignCompleted;
+    private String esignTransactionId;
+    private String eStampNumber;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

@@ -44,6 +44,15 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             ref.setSpacingAfter(20);
             document.add(ref);
 
+                Paragraph signing = new Paragraph(
+                    "E-STAMP / E-SIGN RECORD\n" +
+                    "E-Stamp Number: " + valueOrPending(lease.getEStampNumber()) + "\n" +
+                    "E-Sign Transaction: " + valueOrPending(lease.getEsignTransactionId()),
+                    FOOTER_FONT);
+                signing.setAlignment(Element.ALIGN_CENTER);
+                signing.setSpacingAfter(16);
+                document.add(signing);
+
             // Body Text
             String bodyText = String.format(
                     "This Rent Agreement is executed on %s by and between:\n\n" +
@@ -91,6 +100,13 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
                 Paragraph clausesText = new Paragraph(lease.getCustomClauses(), NORMAL_FONT);
                 clausesText.setSpacingAfter(30);
                 document.add(clausesText);
+            }
+
+            if (lease.getTermsAndConditions() != null && !lease.getTermsAndConditions().isBlank()) {
+                Paragraph termsHeader = new Paragraph("TERMS & CONDITIONS:", BOLD_FONT);
+                termsHeader.setSpacingAfter(10);
+                document.add(termsHeader);
+                document.add(new Paragraph(lease.getTermsAndConditions(), NORMAL_FONT));
             }
 
             // Signature Table
@@ -183,5 +199,9 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
 
         table.addCell(cellLabel);
         table.addCell(cellValue);
+    }
+
+    private String valueOrPending(String value) {
+        return value == null || value.isBlank() ? "PENDING PROVIDER INTEGRATION" : value;
     }
 }
