@@ -12,7 +12,8 @@ import {
   LayoutDashboard,
   LogOut,
   ExternalLink,
-  ShieldCheck,
+  Wrench,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,8 @@ const navItems = [
   { name: 'Tenants', href: '/app/tenants', icon: Users },
   { name: 'Leases', href: '/app/leases', icon: FileText },
   { name: 'Receipts', href: '/app/receipts', icon: Receipt },
+  { name: 'Tickets', href: '/app/tickets', icon: Wrench },
+  { name: 'CRM Leads', href: '/app/leads', icon: UserCheck },
   { name: 'Settings', href: '/app/settings', icon: Settings },
 ];
 
