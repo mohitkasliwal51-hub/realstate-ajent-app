@@ -36,6 +36,22 @@ public class TenantAccessService {
         }
     }
 
+    public UUID getCurrentOrganizationId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof SecurityUser securityUser)) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+        UUID userOrgId = securityUser.getOrganizationId();
+        if (userOrgId == null && securityUser.getProfile().getRole() != UserRole.SUPER_ADMIN) {
+            throw new AccessDeniedException("Organization is required");
+        }
+        return userOrgId;
+    }
+
+    public void validateUserOrganization() {
+        getCurrentOrganizationId();
+    }
+
     public void validateUserOrganization(UUID requestOrganizationId) {
         if (requestOrganizationId == null) {
             throw new AccessDeniedException("Organization is required");

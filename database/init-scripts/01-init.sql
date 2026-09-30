@@ -528,6 +528,10 @@ FOR EACH ROW EXECUTE FUNCTION sync_unit_lease_status();
 -- Unique Receipt Number Scoped Per Organization
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_receipt_number_per_org ON public.receipts(organization_id, receipt_number);
 
+-- Unique Property Unit Number and Org Phone Constraints
+ALTER TABLE public.units ADD CONSTRAINT uq_property_unit_number UNIQUE (property_id, unit_number);
+ALTER TABLE public.tenants ADD CONSTRAINT uq_org_phone UNIQUE (organization_id, phone);
+
 -- High-Performance Composite Multi-Tenant Indexes
 CREATE INDEX IF NOT EXISTS idx_leases_org_status ON public.leases(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_units_property_status ON public.units(property_id, status);
@@ -538,6 +542,7 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_wamid ON public.whatsapp_logs(organ
 CREATE INDEX IF NOT EXISTS idx_leads_org_status ON public.property_leads(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_bbps_org_status ON public.bbps_transactions(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_integration_logs_provider ON public.integration_logs(provider);
+CREATE INDEX IF NOT EXISTS idx_lease_unit_dates ON public.leases (unit_id, start_date, end_date) WHERE status IN ('ACTIVE','PENDING_ESIGN');
 
 -- -----------------------------------------------------------------------------
 -- 9. ROW LEVEL SECURITY (RLS) POLICIES

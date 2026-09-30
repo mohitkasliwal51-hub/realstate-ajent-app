@@ -14,6 +14,7 @@ import com.bhartiyasaas.stayfile.mapper.PropertyMapper;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ProfileRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyService;
 
@@ -33,10 +34,10 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     @Transactional
-    public PropertyResponse createProperty(PropertyCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
+    public PropertyResponse createProperty(PropertyCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
         Profile owner = profileRepository.findById(request.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
@@ -56,8 +57,8 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     @Transactional(readOnly = true)
-    public PropertyResponse getPropertyById(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public PropertyResponse getPropertyById(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Property property = propertyRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
         return propertyMapper.toResponse(property);
@@ -65,8 +66,8 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PropertyResponse> getPropertiesByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<PropertyResponse> getPropertiesByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         return propertyMapper.toResponseList(propertyRepository.findByOrganizationId(organizationId));
     }
 

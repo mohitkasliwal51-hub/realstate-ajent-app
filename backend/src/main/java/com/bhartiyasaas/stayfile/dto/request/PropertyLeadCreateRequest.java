@@ -16,9 +16,6 @@ import java.util.UUID;
 @Builder
 public class PropertyLeadCreateRequest {
 
-    @NotNull(message = "Organization ID is required")
-    private UUID organizationId;
-
     private UUID propertyId;
     private UUID unitId;
 

@@ -15,6 +15,7 @@ import com.bhartiyasaas.stayfile.mapper.UnitMapper;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.UnitService;
 
@@ -33,13 +34,13 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional
-    public UnitResponse createUnit(UnitCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+    public UnitResponse createUnit(UnitCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
 
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
-        Property property = propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), request.getOrganizationId())
+        Property property = propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + request.getPropertyId()));
 
         Unit unit = unitMapper.toEntity(request);
@@ -55,8 +56,8 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional(readOnly = true)
-    public UnitResponse getUnitById(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public UnitResponse getUnitById(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Unit unit = unitRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + id));
         return unitMapper.toResponse(unit);
@@ -64,8 +65,8 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UnitResponse> getUnitsByProperty(UUID propertyId, UUID organizationId, UnitStatus statusFilter) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<UnitResponse> getUnitsByProperty(UUID propertyId, SecurityUser currentUser, UnitStatus statusFilter) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<Unit> units;
         if (statusFilter != null) {
             units = unitRepository.findByPropertyIdAndOrganizationIdAndStatus(propertyId, organizationId, statusFilter);
@@ -77,8 +78,8 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional
-    public UnitResponse updateUnitStatus(UUID id, UUID organizationId, UnitStatus status) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public UnitResponse updateUnitStatus(UUID id, SecurityUser currentUser, UnitStatus status) {
+        UUID organizationId = currentUser.getOrganizationId();
         Unit unit = unitRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + id));
 
@@ -89,8 +90,8 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional
-    public UnitResponse updateUnit(UUID id, UUID organizationId, UnitCreateRequest request) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public UnitResponse updateUnit(UUID id, SecurityUser currentUser, UnitCreateRequest request) {
+        UUID organizationId = currentUser.getOrganizationId();
         Unit unit = unitRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + id));
 
@@ -109,8 +110,8 @@ public class UnitServiceImpl implements UnitService {
 
     @Override
     @Transactional
-    public void deleteUnit(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public void deleteUnit(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Unit unit = unitRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + id));
         unitRepository.delete(unit);

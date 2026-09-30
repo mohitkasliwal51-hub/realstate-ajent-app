@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.ReceiptCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.ReceiptResponse;
@@ -26,8 +29,10 @@ public class ReceiptController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
-    public ResponseEntity<ApiResponse<ReceiptResponse>> createReceipt(@Valid @RequestBody ReceiptCreateRequest request) {
-        ReceiptResponse response = receiptService.createReceipt(request);
+    public ResponseEntity<ApiResponse<ReceiptResponse>> createReceipt(
+            @Valid @RequestBody ReceiptCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        ReceiptResponse response = receiptService.createReceipt(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Receipt generated successfully"));
     }
@@ -36,16 +41,16 @@ public class ReceiptController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ReceiptResponse>> getReceiptById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        ReceiptResponse response = receiptService.getReceiptById(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        ReceiptResponse response = receiptService.getReceiptById(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<ReceiptResponse>>> getReceiptsByOrganization(
-            @RequestParam UUID organizationId) {
-        List<ReceiptResponse> response = receiptService.getReceiptsByOrganization(organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<ReceiptResponse> response = receiptService.getReceiptsByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -53,8 +58,8 @@ public class ReceiptController {
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadReceiptPdf(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        byte[] pdfBytes = receiptService.getReceiptPdf(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        byte[] pdfBytes = receiptService.getReceiptPdf(id, currentUser);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("inline", "receipt_" + id + ".pdf");

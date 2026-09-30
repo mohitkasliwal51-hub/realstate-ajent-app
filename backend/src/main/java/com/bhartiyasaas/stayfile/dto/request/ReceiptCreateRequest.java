@@ -20,9 +20,6 @@ import com.bhartiyasaas.stayfile.entity.enums.ReceiptType;
 @Builder
 public class ReceiptCreateRequest {
 
-    @NotNull(message = "Organization ID is required")
-    private UUID organizationId;
-
     @NotNull(message = "Lease ID is required")
     private UUID leaseId;
 

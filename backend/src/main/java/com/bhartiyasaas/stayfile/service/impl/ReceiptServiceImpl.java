@@ -11,6 +11,7 @@ import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.ReceiptMapper;
 import com.bhartiyasaas.stayfile.repository.*;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 import com.bhartiyasaas.stayfile.service.ReceiptService;
@@ -33,17 +34,17 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     @Transactional
-    public ReceiptResponse createReceipt(ReceiptCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+    public ReceiptResponse createReceipt(ReceiptCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
 
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
         Lease lease = leaseRepository.findById(request.getLeaseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + request.getLeaseId()));
 
         if (lease.getOrganization() == null || !lease.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Lease does not belong to the specified Organization");
+            throw new IllegalArgumentException("Lease does not belong to your Organization");
         }
         if (lease.getStatus() != LeaseStatus.ACTIVE) {
             throw new IllegalStateException("Receipts can only be issued for active leases");
@@ -68,8 +69,8 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     @Transactional(readOnly = true)
-    public ReceiptResponse getReceiptById(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public ReceiptResponse getReceiptById(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");
@@ -78,8 +79,8 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReceiptResponse> getReceiptsByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<ReceiptResponse> getReceiptsByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<Receipt> receipts = receiptRepository.findByOrganizationId(organizationId).stream()
                 .filter(receipt -> tenantAccessService.canAccessTenant(receipt.getTenant(), "payment receipt"))
                 .collect(Collectors.toList());
@@ -89,8 +90,8 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] getReceiptPdf(UUID receiptId, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public byte[] getReceiptPdf(UUID receiptId, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Receipt receipt = receiptRepository.findByIdAndOrganizationId(receiptId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + receiptId));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");

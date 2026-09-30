@@ -19,9 +19,6 @@ import com.bhartiyasaas.stayfile.entity.enums.PropertyType;
 @Builder
 public class PropertyCreateRequest {
 
-    @NotNull(message = "Organization ID is required")
-    private UUID organizationId;
-
     @NotNull(message = "Owner ID is required")
     private UUID ownerId;
 

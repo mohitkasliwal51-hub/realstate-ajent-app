@@ -19,9 +19,6 @@ import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 @Builder
 public class LeaseCreateRequest {
 
-    @NotNull(message = "Organization ID is required")
-    private UUID organizationId;
-
     @NotNull(message = "Unit ID is required")
     private UUID unitId;
 

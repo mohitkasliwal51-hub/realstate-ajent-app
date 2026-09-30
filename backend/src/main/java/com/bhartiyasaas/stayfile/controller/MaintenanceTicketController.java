@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.MaintenanceTicketCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.MaintenanceTicketResponse;
@@ -24,16 +27,19 @@ public class MaintenanceTicketController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
     @PostMapping
-    public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> createTicket(@Valid @RequestBody MaintenanceTicketCreateRequest request) {
-        MaintenanceTicketResponse response = ticketService.createTicket(request);
+    public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> createTicket(
+            @Valid @RequestBody MaintenanceTicketCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        MaintenanceTicketResponse response = ticketService.createTicket(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Maintenance ticket created successfully"));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<MaintenanceTicketResponse>>> getTicketsByOrganization(@RequestParam UUID organizationId) {
-        List<MaintenanceTicketResponse> response = ticketService.getTicketsByOrganization(organizationId);
+    public ResponseEntity<ApiResponse<List<MaintenanceTicketResponse>>> getTicketsByOrganization(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<MaintenanceTicketResponse> response = ticketService.getTicketsByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -41,8 +47,8 @@ public class MaintenanceTicketController {
     @GetMapping("/tenant")
     public ResponseEntity<ApiResponse<List<MaintenanceTicketResponse>>> getTicketsByTenant(
             @RequestParam UUID tenantId,
-            @RequestParam UUID organizationId) {
-        List<MaintenanceTicketResponse> response = ticketService.getTicketsByTenant(tenantId, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<MaintenanceTicketResponse> response = ticketService.getTicketsByTenant(tenantId, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -50,9 +56,9 @@ public class MaintenanceTicketController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> updateTicketStatus(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @RequestParam String status) {
-        MaintenanceTicketResponse response = ticketService.updateTicketStatus(id, organizationId, status);
+        MaintenanceTicketResponse response = ticketService.updateTicketStatus(id, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Ticket status updated to " + status));
     }
 }

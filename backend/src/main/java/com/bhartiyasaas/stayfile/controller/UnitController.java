@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.UnitCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.UnitResponse;
@@ -25,8 +28,10 @@ public class UnitController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping("/units")
-    public ResponseEntity<ApiResponse<UnitResponse>> createUnit(@Valid @RequestBody UnitCreateRequest request) {
-        UnitResponse response = unitService.createUnit(request);
+    public ResponseEntity<ApiResponse<UnitResponse>> createUnit(
+            @Valid @RequestBody UnitCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        UnitResponse response = unitService.createUnit(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Unit created successfully"));
     }
@@ -35,9 +40,9 @@ public class UnitController {
     @GetMapping("/properties/{propertyId}/units")
     public ResponseEntity<ApiResponse<List<UnitResponse>>> getUnitsByProperty(
             @PathVariable UUID propertyId,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @RequestParam(required = false) UnitStatus status) {
-        List<UnitResponse> response = unitService.getUnitsByProperty(propertyId, organizationId, status);
+        List<UnitResponse> response = unitService.getUnitsByProperty(propertyId, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -45,8 +50,8 @@ public class UnitController {
     @GetMapping("/units/{id}")
     public ResponseEntity<ApiResponse<UnitResponse>> getUnitById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        UnitResponse response = unitService.getUnitById(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        UnitResponse response = unitService.getUnitById(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -54,9 +59,9 @@ public class UnitController {
     @PatchMapping("/units/{id}/status")
     public ResponseEntity<ApiResponse<UnitResponse>> updateUnitStatus(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @RequestParam UnitStatus status) {
-        UnitResponse response = unitService.updateUnitStatus(id, organizationId, status);
+        UnitResponse response = unitService.updateUnitStatus(id, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Unit status updated successfully"));
     }
 
@@ -64,9 +69,9 @@ public class UnitController {
     @PutMapping("/units/{id}")
     public ResponseEntity<ApiResponse<UnitResponse>> updateUnit(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @Valid @RequestBody UnitCreateRequest request) {
-        UnitResponse response = unitService.updateUnit(id, organizationId, request);
+        UnitResponse response = unitService.updateUnit(id, currentUser, request);
         return ResponseEntity.ok(ApiResponse.success(response, "Unit updated successfully"));
     }
 
@@ -74,8 +79,8 @@ public class UnitController {
     @DeleteMapping("/units/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUnit(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        unitService.deleteUnit(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        unitService.deleteUnit(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(null, "Unit deleted successfully"));
     }
 }

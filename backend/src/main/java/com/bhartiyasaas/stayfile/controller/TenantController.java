@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.TenantCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.TenantResponse;
@@ -25,8 +28,10 @@ public class TenantController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
-    public ResponseEntity<ApiResponse<TenantResponse>> createTenant(@Valid @RequestBody TenantCreateRequest request) {
-        TenantResponse response = tenantService.createTenant(request);
+    public ResponseEntity<ApiResponse<TenantResponse>> createTenant(
+            @Valid @RequestBody TenantCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        TenantResponse response = tenantService.createTenant(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Tenant onboarded successfully"));
     }
@@ -35,16 +40,16 @@ public class TenantController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TenantResponse>> getTenantById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        TenantResponse response = tenantService.getTenantById(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        TenantResponse response = tenantService.getTenantById(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<TenantResponse>>> getTenantsByOrganization(
-            @RequestParam UUID organizationId) {
-        List<TenantResponse> response = tenantService.getTenantsByOrganization(organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<TenantResponse> response = tenantService.getTenantsByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -52,9 +57,9 @@ public class TenantController {
     @PatchMapping("/{id}/kyc")
     public ResponseEntity<ApiResponse<TenantResponse>> verifyTenantKyc(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @RequestParam VerificationStatus status) {
-        TenantResponse response = tenantService.verifyTenantKyc(id, organizationId, status);
+        TenantResponse response = tenantService.verifyTenantKyc(id, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Tenant KYC status updated successfully"));
     }
 }

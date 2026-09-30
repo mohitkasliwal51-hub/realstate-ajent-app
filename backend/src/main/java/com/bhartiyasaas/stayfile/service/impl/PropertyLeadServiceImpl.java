@@ -17,6 +17,7 @@ import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyLeadRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyLeadService;
 
@@ -36,19 +37,31 @@ public class PropertyLeadServiceImpl implements PropertyLeadService {
 
     @Override
     @Transactional
-    public PropertyLeadResponse createLead(PropertyLeadCreateRequest request) {
-        Organization org = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+    public PropertyLeadResponse createLead(PropertyLeadCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser != null ? currentUser.getOrganizationId() : null;
 
         Property property = null;
         if (request.getPropertyId() != null) {
-            property = propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), request.getOrganizationId()).orElse(null);
+            property = propertyRepository.findById(request.getPropertyId()).orElse(null);
+            if (property != null && organizationId == null) {
+                organizationId = property.getOrganization().getId();
+            }
         }
 
         Unit unit = null;
         if (request.getUnitId() != null) {
-            unit = unitRepository.findByIdAndOrganizationId(request.getUnitId(), request.getOrganizationId()).orElse(null);
+            unit = unitRepository.findById(request.getUnitId()).orElse(null);
+            if (unit != null && organizationId == null) {
+                organizationId = unit.getOrganization().getId();
+            }
         }
+
+        if (organizationId == null) {
+            throw new ResourceNotFoundException("Target organization could not be determined for lead inquiry");
+        }
+
+        Organization org = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         PropertyLead lead = leadMapper.toEntity(request);
         lead.setOrganization(org);
@@ -62,16 +75,16 @@ public class PropertyLeadServiceImpl implements PropertyLeadService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PropertyLeadResponse> getLeadsByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<PropertyLeadResponse> getLeadsByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<PropertyLead> leads = leadRepository.findByOrganizationId(organizationId);
         return leadMapper.toResponseList(leads);
     }
 
     @Override
     @Transactional
-    public PropertyLeadResponse updateLeadStatus(UUID leadId, UUID organizationId, LeadStatus status) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public PropertyLeadResponse updateLeadStatus(UUID leadId, SecurityUser currentUser, LeadStatus status) {
+        UUID organizationId = currentUser.getOrganizationId();
         PropertyLead lead = leadRepository.findByIdAndOrganizationId(leadId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lead not found"));
 

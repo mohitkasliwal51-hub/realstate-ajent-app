@@ -9,9 +9,12 @@ import com.bhartiyasaas.stayfile.dto.response.LeaseResponse;
 import com.bhartiyasaas.stayfile.entity.*;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 import com.bhartiyasaas.stayfile.entity.enums.UnitStatus;
+import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
+import com.bhartiyasaas.stayfile.exception.UnauthorizedException;
 import com.bhartiyasaas.stayfile.mapper.LeaseMapper;
 import com.bhartiyasaas.stayfile.repository.*;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.LeaseService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
@@ -38,18 +41,22 @@ public class LeaseServiceImpl implements LeaseService {
 
     @Override
     @Transactional
-    public LeaseResponse createLease(LeaseCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+    public LeaseResponse createLease(LeaseCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
 
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("Lease end date must be on or after the start date");
+            throw new BadRequestException("Lease end date must be on or after the start date");
         }
 
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
-
-        Unit unit = unitRepository.findById(request.getUnitId())
+        Unit unit = unitRepository.findByIdForUpdate(request.getUnitId())
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + request.getUnitId()));
+
+        if (unit.getOrganization() == null || !unit.getOrganization().getId().equals(organizationId)) {
+            throw new UnauthorizedException("Unit does not belong to your Organization");
+        }
+
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + request.getTenantId()));
@@ -57,32 +64,28 @@ public class LeaseServiceImpl implements LeaseService {
         Profile owner = profileRepository.findById(request.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
 
-        if (unit.getOrganization() == null || !unit.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Unit does not belong to the specified Organization");
+        if (tenant.getOrganization() == null || !tenant.getOrganization().getId().equals(organizationId)) {
+            throw new UnauthorizedException("Tenant does not belong to your Organization");
         }
-        if (tenant.getOrganization() == null || !tenant.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Tenant does not belong to the specified Organization");
-        }
-        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
+        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organizationId)) {
+            throw new UnauthorizedException("Owner profile does not belong to your Organization");
         }
 
         // Rule 1: Prevent leasing occupied, maintenance or disabled units
         if (unit.getStatus() == UnitStatus.OCCUPIED || unit.getStatus() == UnitStatus.MAINTENANCE || unit.getStatus() == UnitStatus.DISABLED) {
-            throw new IllegalStateException("Unit " + unit.getUnitNumber() + " is currently " + unit.getStatus() + " and cannot be leased.");
+            throw new BadRequestException("Unit " + unit.getUnitNumber() + " is currently " + unit.getStatus() + " and cannot be leased.");
         }
 
         // Rule 2: Prevent overlapping leases
-        Set<LeaseStatus> activeStatuses = EnumSet.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_ESIGN, LeaseStatus.ACTIVE);
         List<Lease> overlapping = leaseRepository.findOverlappingLeases(
-                unit.getId(), request.getStartDate(), request.getEndDate(), activeStatuses);
+                unit.getId(), request.getStartDate(), request.getEndDate());
         if (!overlapping.isEmpty()) {
-            throw new IllegalStateException("An active, pending, or draft lease already exists for unit " + unit.getUnitNumber() + " during the selected date range.");
+            throw new BadRequestException("Unit already booked for selected dates");
         }
 
         AgreementTemplate template = null;
         if (request.getAgreementTemplateId() != null) {
-            template = agreementTemplateRepository.findByIdAndOrganizationId(request.getAgreementTemplateId(), organization.getId())
+            template = agreementTemplateRepository.findByIdAndOrganizationId(request.getAgreementTemplateId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Agreement template not found or does not belong to your organization"));
         }
 
@@ -93,16 +96,27 @@ public class LeaseServiceImpl implements LeaseService {
         lease.setOwner(owner);
         lease.setAgreementTemplate(template);
         lease.setIsEsignCompleted(false);
-        lease.setStatus(LeaseStatus.DRAFT);
+        if (request.getStatus() != null) {
+            lease.setStatus(request.getStatus());
+        } else {
+            lease.setStatus(LeaseStatus.DRAFT);
+        }
 
         Lease savedLease = leaseRepository.save(lease);
+
+        if (savedLease.getStatus() == LeaseStatus.ACTIVE) {
+            unit.setStatus(UnitStatus.OCCUPIED);
+            unit.setCurrentLease(savedLease);
+            unitRepository.save(unit);
+        }
+
         return leaseMapper.toResponse(savedLease);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public LeaseResponse getLeaseById(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public LeaseResponse getLeaseById(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Lease lease = leaseRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(lease.getTenant(), "rent agreement");
@@ -111,8 +125,8 @@ public class LeaseServiceImpl implements LeaseService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LeaseResponse> getLeasesByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<LeaseResponse> getLeasesByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<Lease> leases = leaseRepository.findByOrganizationId(organizationId).stream()
                 .filter(lease -> tenantAccessService.canAccessTenant(lease.getTenant(), "rent agreement"))
                 .collect(Collectors.toList());
@@ -122,8 +136,8 @@ public class LeaseServiceImpl implements LeaseService {
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] getLeasePdf(UUID leaseId, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public byte[] getLeasePdf(UUID leaseId, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
         tenantAccessService.validateTenantOwnership(lease.getTenant(), "rent agreement");
@@ -132,8 +146,8 @@ public class LeaseServiceImpl implements LeaseService {
 
     @Override
     @Transactional
-    public LeaseResponse updateLeaseStatus(UUID leaseId, UUID organizationId, LeaseStatus targetStatus) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public LeaseResponse updateLeaseStatus(UUID leaseId, SecurityUser currentUser, LeaseStatus targetStatus) {
+        UUID organizationId = currentUser.getOrganizationId();
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
 

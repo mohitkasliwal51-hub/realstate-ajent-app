@@ -16,6 +16,7 @@ import com.bhartiyasaas.stayfile.repository.MaintenanceTicketRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.MaintenanceTicketService;
 
@@ -35,16 +36,16 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
 
     @Override
     @Transactional
-    public MaintenanceTicketResponse createTicket(MaintenanceTicketCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+    public MaintenanceTicketResponse createTicket(MaintenanceTicketCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
 
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
+        Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Unit unit = unitRepository.findByIdAndOrganizationId(request.getUnitId(), request.getOrganizationId())
+        Unit unit = unitRepository.findByIdAndOrganizationId(request.getUnitId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found"));
 
-        Tenant tenant = tenantRepository.findByIdAndOrganizationId(request.getTenantId(), request.getOrganizationId())
+        Tenant tenant = tenantRepository.findByIdAndOrganizationId(request.getTenantId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
 
         MaintenanceTicket ticket = ticketMapper.toEntity(request);
@@ -59,24 +60,24 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MaintenanceTicketResponse> getTicketsByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<MaintenanceTicketResponse> getTicketsByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<MaintenanceTicket> tickets = ticketRepository.findByOrganizationId(organizationId);
         return ticketMapper.toResponseList(tickets);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<MaintenanceTicketResponse> getTicketsByTenant(UUID tenantId, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<MaintenanceTicketResponse> getTicketsByTenant(UUID tenantId, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<MaintenanceTicket> tickets = ticketRepository.findByTenantIdAndOrganizationId(tenantId, organizationId);
         return ticketMapper.toResponseList(tickets);
     }
 
     @Override
     @Transactional
-    public MaintenanceTicketResponse updateTicketStatus(UUID ticketId, UUID organizationId, String status) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public MaintenanceTicketResponse updateTicketStatus(UUID ticketId, SecurityUser currentUser, String status) {
+        UUID organizationId = currentUser.getOrganizationId();
         MaintenanceTicket ticket = ticketRepository.findByIdAndOrganizationId(ticketId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
 

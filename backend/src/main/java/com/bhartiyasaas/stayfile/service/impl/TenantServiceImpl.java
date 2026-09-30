@@ -16,6 +16,7 @@ import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ProfileRepository;
 import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.security.PiiEncryptionService;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.TenantService;
 
@@ -36,11 +37,11 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional
-    public TenantResponse createTenant(TenantCreateRequest request) {
-        tenantAccessService.validateUserOrganization(request.getOrganizationId());
+    public TenantResponse createTenant(TenantCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
 
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
         Tenant tenant = tenantMapper.toEntity(request);
         tenant.setOrganization(organization);
@@ -72,8 +73,8 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional(readOnly = true)
-    public TenantResponse getTenantById(UUID id, UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public TenantResponse getTenantById(UUID id, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         Tenant tenant = tenantRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(tenant, "tenant profile");
@@ -82,8 +83,8 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TenantResponse> getTenantsByOrganization(UUID organizationId) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public List<TenantResponse> getTenantsByOrganization(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
         List<Tenant> tenants = tenantRepository.findByOrganizationId(organizationId).stream()
                 .filter(tenant -> tenantAccessService.canAccessTenant(tenant, "tenant profile"))
                 .collect(Collectors.toList());
@@ -93,8 +94,8 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional
-    public TenantResponse verifyTenantKyc(UUID id, UUID organizationId, VerificationStatus status) {
-        tenantAccessService.validateUserOrganization(organizationId);
+    public TenantResponse verifyTenantKyc(UUID id, SecurityUser currentUser, VerificationStatus status) {
+        UUID organizationId = currentUser.getOrganizationId();
         Tenant tenant = tenantRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + id));
         tenant.setKycStatus(status);

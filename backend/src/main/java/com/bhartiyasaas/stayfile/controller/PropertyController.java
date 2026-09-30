@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.PropertyCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.PropertyResponse;
@@ -24,8 +27,10 @@ public class PropertyController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
-    public ResponseEntity<ApiResponse<PropertyResponse>> createProperty(@Valid @RequestBody PropertyCreateRequest request) {
-        PropertyResponse response = propertyService.createProperty(request);
+    public ResponseEntity<ApiResponse<PropertyResponse>> createProperty(
+            @Valid @RequestBody PropertyCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        PropertyResponse response = propertyService.createProperty(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Property created successfully"));
     }
@@ -34,16 +39,16 @@ public class PropertyController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PropertyResponse>> getPropertyById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        PropertyResponse response = propertyService.getPropertyById(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        PropertyResponse response = propertyService.getPropertyById(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PropertyResponse>>> getPropertiesByOrganization(
-            @RequestParam UUID organizationId) {
-        List<PropertyResponse> response = propertyService.getPropertiesByOrganization(organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<PropertyResponse> response = propertyService.getPropertiesByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

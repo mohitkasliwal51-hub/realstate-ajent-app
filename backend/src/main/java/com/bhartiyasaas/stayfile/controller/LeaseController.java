@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.bhartiyasaas.stayfile.security.SecurityUser;
+
 import com.bhartiyasaas.stayfile.dto.request.LeaseCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.LeaseResponse;
@@ -27,8 +30,10 @@ public class LeaseController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
-    public ResponseEntity<ApiResponse<LeaseResponse>> createLease(@Valid @RequestBody LeaseCreateRequest request) {
-        LeaseResponse response = leaseService.createLease(request);
+    public ResponseEntity<ApiResponse<LeaseResponse>> createLease(
+            @Valid @RequestBody LeaseCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        LeaseResponse response = leaseService.createLease(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Rent agreement created successfully"));
     }
@@ -37,16 +42,16 @@ public class LeaseController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LeaseResponse>> getLeaseById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        LeaseResponse response = leaseService.getLeaseById(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        LeaseResponse response = leaseService.getLeaseById(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<LeaseResponse>>> getLeasesByOrganization(
-            @RequestParam UUID organizationId) {
-        List<LeaseResponse> response = leaseService.getLeasesByOrganization(organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<LeaseResponse> response = leaseService.getLeasesByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -54,9 +59,9 @@ public class LeaseController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<LeaseResponse>> updateLeaseStatus(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @AuthenticationPrincipal SecurityUser currentUser,
             @RequestParam LeaseStatus status) {
-        LeaseResponse response = leaseService.updateLeaseStatus(id, organizationId, status);
+        LeaseResponse response = leaseService.updateLeaseStatus(id, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Lease status updated to " + status));
     }
 
@@ -64,8 +69,8 @@ public class LeaseController {
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadLeasePdf(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
-        byte[] pdfBytes = leaseService.getLeasePdf(id, organizationId);
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        byte[] pdfBytes = leaseService.getLeasePdf(id, currentUser);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("inline", "rent_agreement_" + id + ".pdf");
