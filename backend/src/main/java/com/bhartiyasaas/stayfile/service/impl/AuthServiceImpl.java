@@ -6,10 +6,13 @@ import com.bhartiyasaas.stayfile.dto.response.AuthResponse;
 import com.bhartiyasaas.stayfile.dto.response.UserProfileResponse;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Profile;
+import com.bhartiyasaas.stayfile.entity.BrandingSettings;
 import com.bhartiyasaas.stayfile.entity.enums.UserRole;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ProfileRepository;
+import com.bhartiyasaas.stayfile.repository.BrandingSettingsRepository;
+import com.bhartiyasaas.stayfile.dto.response.AuthUserResponse;
 import com.bhartiyasaas.stayfile.security.JwtTokenProvider;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.service.AuthService;
@@ -30,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final ProfileRepository profileRepository;
     private final OrganizationRepository organizationRepository;
+    private final BrandingSettingsRepository brandingSettingsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -40,10 +44,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (profileRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("An account with email " + request.getEmail() + " already exists.");
-        }
-
         String slug = request.getOrganizationSlug();
         if (slug == null || slug.isBlank()) {
             slug = generateSlug(request.getOrganizationName());
@@ -62,10 +62,20 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         organization = organizationRepository.save(organization);
 
+        brandingSettingsRepository.save(BrandingSettings.builder()
+            .organization(organization)
+            .legalBusinessName(request.getOrganizationName())
+            .tradeName(request.getOrganizationName())
+            .contactEmail(request.getEmail())
+            .contactPhone(request.getPhone())
+            .primaryColor("#2563eb")
+            .secondaryColor("#1e293b")
+            .build());
+
         Profile profile = Profile.builder()
                 .organization(organization)
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
                 .role(UserRole.OWNER_ADMIN)
@@ -86,6 +96,8 @@ public class AuthServiceImpl implements AuthService {
                 .role(profile.getRole())
                 .organizationId(organization.getId())
                 .organizationName(organization.getName())
+                .phone(profile.getPhone())
+                .user(toAuthUser(profile, organization))
                 .build();
     }
 
@@ -111,6 +123,8 @@ public class AuthServiceImpl implements AuthService {
                 .role(profile.getRole())
                 .organizationId(profile.getOrganizationId())
                 .organizationName(org != null ? org.getName() : null)
+                .phone(profile.getPhone())
+                .user(toAuthUser(profile, org))
                 .build();
     }
 
@@ -141,5 +155,17 @@ public class AuthServiceImpl implements AuthService {
         String normalized = java.text.Normalizer.normalize(nowhitespace, java.text.Normalizer.Form.NFD);
         String slug = normalized.replaceAll("[^\\w-]", "").toLowerCase(Locale.ENGLISH);
         return slug.replaceAll("-+", "-");
+    }
+
+    private AuthUserResponse toAuthUser(Profile profile, Organization organization) {
+        return AuthUserResponse.builder()
+                .id(profile.getId())
+                .email(profile.getEmail())
+                .fullName(profile.getFullName())
+                .role(profile.getRole())
+                .organizationId(profile.getOrganizationId())
+                .organizationName(organization == null ? null : organization.getName())
+                .phone(profile.getPhone())
+                .build();
     }
 }

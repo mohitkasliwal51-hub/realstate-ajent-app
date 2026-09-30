@@ -10,28 +10,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AuthResponse {
-
-    private String token;
-
-    private AuthUserResponse user;
-
-    @Builder.Default
-    private String tokenType = "Bearer";
-
-    private Long expiresInMs;
-
-    private UUID profileId;
-
+public class AuthUserResponse {
+    private UUID id;
     private String email;
-
     private String fullName;
-
-    private String phone;
-
     private UserRole role;
-
     private UUID organizationId;
-
     private String organizationName;
+    private String phone;
 }

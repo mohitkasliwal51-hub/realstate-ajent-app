@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Links to auth.users or Spring Boot User ID
     organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
-    email TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,                             -- Unique within the organization
     password TEXT,                                   -- BCrypt hashed password (nullable for OAuth / SSO users)
     phone TEXT,
     full_name TEXT NOT NULL,
@@ -160,6 +160,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- A user email may exist in multiple organizations, but only once per organization.
+CREATE UNIQUE INDEX IF NOT EXISTS uk_profiles_organization_email
+    ON public.profiles (organization_id, email);
 
 -- Custom Branding & Legal Company Settings
 CREATE TABLE IF NOT EXISTS public.branding_settings (

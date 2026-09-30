@@ -27,7 +27,7 @@ public class SecurityUser implements UserDetails {
 
     @Override
     public String getPassword() {
-        return profile.getPassword();
+        return profile.getPasswordHash();
     }
 
     @Override

@@ -63,7 +63,9 @@ public class JwtTokenProvider {
 
     public String generateToken(SecurityUser securityUser) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", securityUser.getProfileId());
         claims.put("profileId", securityUser.getProfileId());
+        claims.put("email", securityUser.getUsername());
         claims.put("organizationId", securityUser.getOrganizationId());
         if (securityUser.getProfile().getRole() != null) {
             claims.put("role", securityUser.getProfile().getRole().name());

@@ -12,7 +12,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "profiles", schema = "public")
+@Table(name = "profiles", schema = "public", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_profiles_organization_email", columnNames = {"organization_id", "email"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,11 +33,11 @@ public class Profile {
     @JoinColumn(name = "organization_id")
     private Organization organization;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
     @Column(name = "password")
-    private String password;
+    private String passwordHash;
 
     private String phone;
 

@@ -12,5 +12,6 @@ import java.util.UUID;
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     Optional<Profile> findByEmail(String email);
+    Optional<Profile> findByOrganizationIdAndEmail(UUID organizationId, String email);
     List<Profile> findByOrganizationId(UUID organizationId);
 }
