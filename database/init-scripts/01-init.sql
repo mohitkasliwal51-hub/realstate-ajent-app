@@ -27,8 +27,8 @@ CREATE TYPE user_role AS ENUM (
 
 CREATE TYPE property_type AS ENUM (
     'PG',                 -- Paying Guest / Co-Living Space
-    'FULL_FLAT',          -- Apartment / Villa / Independent House
-    'COMMERCIAL',        -- Office / Shop / Warehouse
+    'FLAT',               -- Apartment / Villa / Independent House
+    'COMMERCIAL',         -- Office / Shop / Warehouse
     'HOSTEL'              -- Student Hostel / Dormitory
 );
 
@@ -38,7 +38,7 @@ CREATE TYPE sharing_type AS ENUM (
     'TRIPLE',             -- 3 Sharing
     'FOUR_SHARING',       -- 4 Sharing
     'FULL_FLAT',          -- Whole Apartment
-    'CUSTOM'              -- Custom Arrangement
+    'COMMERCIAL_SPACE'    -- Office / Shop / Warehouse unit
 );
 
 CREATE TYPE unit_status AS ENUM (
@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS public.properties (
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,                              -- e.g. "Sunshine Heights" or "GreenStays PG"
-    type property_type NOT NULL DEFAULT 'PG',        -- PG vs FULL_FLAT vs COMMERCIAL
+    type property_type NOT NULL DEFAULT 'PG',        -- PG vs FLAT vs COMMERCIAL
     address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,

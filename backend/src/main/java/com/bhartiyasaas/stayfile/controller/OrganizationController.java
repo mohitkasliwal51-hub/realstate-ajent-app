@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.PropertyResponse;
+import com.bhartiyasaas.stayfile.dto.response.ShowcaseBrandingResponse;
 import com.bhartiyasaas.stayfile.entity.BrandingSettings;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
@@ -45,7 +46,7 @@ public class OrganizationController {
     public static class ShowcaseResponse {
         private String organizationName;
         private String organizationSlug;
-        private BrandingSettings branding;
+                private ShowcaseBrandingResponse branding;
         private List<PropertyResponse> properties;
     }
 
@@ -104,10 +105,21 @@ public class OrganizationController {
         BrandingSettings branding = brandingSettingsRepository.findByOrganizationId(org.getId()).orElse(null);
         List<PropertyResponse> properties = propertyService.getPublicPropertiesByOrganization(org.getId());
 
+        ShowcaseBrandingResponse publicBranding = branding == null ? null : ShowcaseBrandingResponse.builder()
+                .legalBusinessName(branding.getLegalBusinessName())
+                .tradeName(branding.getTradeName())
+                .ownerGstin(branding.getOwnerGstin())
+                .contactPhone(branding.getContactPhone())
+                .contactEmail(branding.getContactEmail())
+                .agencyLogoUrl(branding.getAgencyLogoUrl())
+                .primaryColor(branding.getPrimaryColor())
+                .secondaryColor(branding.getSecondaryColor())
+                .build();
+
         ShowcaseResponse showcase = ShowcaseResponse.builder()
                 .organizationName(org.getName())
                 .organizationSlug(org.getSlug())
-                .branding(branding)
+                .branding(publicBranding)
                 .properties(properties)
                 .build();
 

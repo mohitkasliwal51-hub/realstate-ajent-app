@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-export type PropertyType = 'PG' | 'HOSTEL' | 'FULL_FLAT' | 'COMMERCIAL';
+export type PropertyType = 'PG' | 'HOSTEL' | 'FLAT' | 'COMMERCIAL';
 
 export interface Property {
   id: string;

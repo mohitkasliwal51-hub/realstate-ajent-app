@@ -330,7 +330,7 @@ export default function PropertyDetailsPage({
               <option value="DOUBLE">Double Sharing</option>
               <option value="TRIPLE">Triple Sharing</option>
               <option value="FOUR_SHARING">Four Sharing</option>
-              <option value="CUSTOM">Custom Arrangement</option>
+              <option value="COMMERCIAL_SPACE">Commercial Space</option>
             </select>
           </div>
 

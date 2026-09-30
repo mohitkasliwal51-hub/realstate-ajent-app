@@ -6,5 +6,5 @@ public enum SharingType {
     TRIPLE,
     FOUR_SHARING,
     FULL_FLAT,
-    CUSTOM
+    COMMERCIAL_SPACE
 }

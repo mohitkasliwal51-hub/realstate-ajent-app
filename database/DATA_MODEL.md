@@ -32,8 +32,8 @@ This document provides a comprehensive technical reference for the **BrokerProp*
 | Enum Name | Allowed Values | Description |
 | :--- | :--- | :--- |
 | `user_role` | `SUPER_ADMIN`, `OWNER_ADMIN`, `PROPERTY_MANAGER`, `STAFF_ASSISTANT`, `TENANT`, `PUBLIC_GUEST` | User permission levels in the RBAC hierarchy |
-| `property_type` | `PG`, `FULL_FLAT`, `COMMERCIAL`, `HOSTEL` | Property classification |
-| `sharing_type` | `SINGLE`, `DOUBLE`, `TRIPLE`, `FOUR_SHARING`, `FULL_FLAT`, `CUSTOM` | Occupancy / sharing configuration for rooms/units |
+| `property_type` | `PG`, `FLAT`, `COMMERCIAL`, `HOSTEL` | Property classification |
+| `sharing_type` | `SINGLE`, `DOUBLE`, `TRIPLE`, `FOUR_SHARING`, `FULL_FLAT`, `COMMERCIAL_SPACE` | Occupancy / sharing configuration for rooms/units |
 | `unit_status` | `AVAILABLE`, `OCCUPIED`, `RESERVED`, `MAINTENANCE`, `DISABLED` | Inventory availability state |
 | `lease_status` | `DRAFT`, `PENDING_ESIGN`, `ACTIVE`, `EXPIRED`, `TERMINATED`, `CANCELLED` | Tenancy agreement status |
 | `receipt_type` | `SECURITY_DEPOSIT`, `RENT_PAYMENT`, `UTILITY_BILL`, `MAINTENANCE`, `TOKEN_BOOKING`, `OTHER` | Purpose of financial payment receipt |

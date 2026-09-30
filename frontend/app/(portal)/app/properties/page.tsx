@@ -78,7 +78,7 @@ export default function PropertiesPage() {
     switch (type) {
       case 'PG': return 'purple';
       case 'HOSTEL': return 'info';
-      case 'FULL_FLAT': return 'success';
+      case 'FLAT': return 'success';
       case 'COMMERCIAL': return 'warning';
       default: return 'default';
     }
@@ -184,7 +184,7 @@ export default function PropertiesPage() {
             >
               <option value="PG">PG (Paying Guest)</option>
               <option value="HOSTEL">Hostel</option>
-              <option value="FULL_FLAT">Full Flat / Apartment</option>
+              <option value="FLAT">Flat / Apartment</option>
               <option value="COMMERCIAL">Commercial Office / Space</option>
             </select>
           </div>

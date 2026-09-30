@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 
 export type UnitStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE' | 'DISABLED';
-export type SharingType = 'SINGLE' | 'DOUBLE' | 'TRIPLE' | 'FOUR_SHARING' | 'FULL_FLAT' | 'CUSTOM';
+export type SharingType = 'SINGLE' | 'DOUBLE' | 'TRIPLE' | 'FOUR_SHARING' | 'FULL_FLAT' | 'COMMERCIAL_SPACE';
 
 export interface Unit {
   id: string;
