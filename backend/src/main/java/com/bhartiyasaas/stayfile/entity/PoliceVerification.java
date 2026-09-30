@@ -52,7 +52,7 @@ public class PoliceVerification {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
-    private VerificationStatus status = VerificationStatus.NOT_STARTED;
+    private VerificationStatus status = VerificationStatus.PENDING;
 
     @Column(name = "submission_date")
     private LocalDate submissionDate;

@@ -1,13 +1,13 @@
 package com.bhartiyasaas.stayfile.entity;
 
 import jakarta.persistence.*;
+import com.bhartiyasaas.stayfile.entity.enums.VerificationStatus;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -28,9 +28,9 @@ public class Tenant {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private Profile owner;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private Profile user;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -40,24 +40,8 @@ public class Tenant {
     @Column(nullable = false)
     private String phone;
 
-    @Column(name = "alternate_phone")
-    private String alternatePhone;
-
-    private String gender;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
     @Column(name = "permanent_address", nullable = false)
     private String permanentAddress;
-
-    private String occupation;
-
-    @Column(name = "organization_or_college")
-    private String organizationOrCollege;
-
-    @Column(name = "work_address")
-    private String workAddress;
 
     @Column(name = "emergency_contact_name")
     private String emergencyContactName;
@@ -72,24 +56,20 @@ public class Tenant {
     @Column(name = "id_proof_type")
     private String idProofType = "Aadhaar";
 
-    @Column(name = "id_proof_last4", length = 4)
+    @Column(name = "id_proof_last4", length = 20)
     private String idProofLast4;
 
     @Column(name = "id_proof_number")
     private String idProofNumber;
 
+    @Column(name = "id_proof_document_url")
+    private String idProofDocumentUrl;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "kyc_status", nullable = false)
     @Builder.Default
-    @Column(name = "is_id_verified")
-    private Boolean isIdVerified = false;
-
-    @Column(name = "id_proof_front_url")
-    private String idProofFrontUrl;
-
-    @Column(name = "id_proof_back_url")
-    private String idProofBackUrl;
-
-    @Column(name = "tenant_photo_url")
-    private String tenantPhotoUrl;
+    private VerificationStatus kycStatus = VerificationStatus.PENDING;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

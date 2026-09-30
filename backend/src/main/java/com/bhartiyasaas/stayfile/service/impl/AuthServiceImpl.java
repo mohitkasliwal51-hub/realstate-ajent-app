@@ -17,7 +17,6 @@ import com.bhartiyasaas.stayfile.security.JwtTokenProvider;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -37,9 +36,6 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
-
-    @Value("${stayfile.jwt.expiration:86400000}")
-    private Long jwtExpiration;
 
     @Override
     @Transactional
@@ -89,14 +85,6 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .token(token)
                 .tokenType("Bearer")
-                .expiresInMs(jwtExpiration)
-                .profileId(profile.getId())
-                .email(profile.getEmail())
-                .fullName(profile.getFullName())
-                .role(profile.getRole())
-                .organizationId(organization.getId())
-                .organizationName(organization.getName())
-                .phone(profile.getPhone())
                 .user(toAuthUser(profile, organization))
                 .build();
     }
@@ -116,14 +104,6 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .token(token)
                 .tokenType("Bearer")
-                .expiresInMs(jwtExpiration)
-                .profileId(profile.getId())
-                .email(profile.getEmail())
-                .fullName(profile.getFullName())
-                .role(profile.getRole())
-                .organizationId(profile.getOrganizationId())
-                .organizationName(org != null ? org.getName() : null)
-                .phone(profile.getPhone())
                 .user(toAuthUser(profile, org))
                 .build();
     }

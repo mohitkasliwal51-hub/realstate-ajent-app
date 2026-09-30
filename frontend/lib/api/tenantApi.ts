@@ -1,5 +1,7 @@
 import { apiClient } from './client';
 
+export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+
 export interface Tenant {
   id: string;
   organizationId: string;
@@ -11,7 +13,8 @@ export interface Tenant {
   permanentAddress?: string;
   idProofType?: string;
   idProofLast4?: string;
-  isIdVerified: boolean;
+  idProofDocumentUrl?: string;
+  kycStatus: VerificationStatus;
   idProofFrontUrl?: string;
   idProofBackUrl?: string;
   createdAt?: string;
@@ -20,15 +23,16 @@ export interface Tenant {
 
 export interface TenantCreatePayload {
   organizationId: string;
-  ownerId: string;
   fullName: string;
   email: string;
   phone: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
   permanentAddress?: string;
   idProofType?: string;
   idProofNumber?: string;
+  idProofDocumentUrl?: string;
 }
 
 export const tenantApi = {
@@ -48,6 +52,17 @@ export const tenantApi = {
 
   createTenant: async (payload: TenantCreatePayload): Promise<Tenant> => {
     const response = await apiClient.post('/api/v1/tenants', payload);
+    return response.data.data;
+  },
+
+  updateKycStatus: async (
+    id: string,
+    organizationId: string,
+    status: VerificationStatus
+  ): Promise<Tenant> => {
+    const response = await apiClient.patch(`/api/v1/tenants/${id}/kyc`, null, {
+      params: { organizationId, status },
+    });
     return response.data.data;
   },
 };

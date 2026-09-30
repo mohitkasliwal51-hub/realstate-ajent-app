@@ -14,17 +14,16 @@ import java.util.List;
 public interface TenantMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
-    @Mapping(target = "ownerId", source = "owner.id")
+    @Mapping(target = "userId", source = "user.id")
     TenantResponse toResponse(Tenant tenant);
 
     List<TenantResponse> toResponseList(List<Tenant> tenants);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "organization", ignore = true)
-    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "user", ignore = true)
     @Mapping(target = "idProofLast4", ignore = true)
     @Mapping(target = "idProofNumber", ignore = true)
-    @Mapping(target = "isIdVerified", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

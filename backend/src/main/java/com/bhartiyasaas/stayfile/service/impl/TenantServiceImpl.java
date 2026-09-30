@@ -9,6 +9,7 @@ import com.bhartiyasaas.stayfile.dto.response.TenantResponse;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Profile;
 import com.bhartiyasaas.stayfile.entity.Tenant;
+import com.bhartiyasaas.stayfile.entity.enums.VerificationStatus;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.TenantMapper;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
@@ -41,30 +42,29 @@ public class TenantServiceImpl implements TenantService {
         Organization organization = organizationRepository.findById(request.getOrganizationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + request.getOrganizationId()));
 
-        Profile owner = profileRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
-
-        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
-        }
-
         Tenant tenant = tenantMapper.toEntity(request);
         tenant.setOrganization(organization);
-        tenant.setOwner(owner);
+
+        if (request.getUserId() != null) {
+            Profile user = profileRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Tenant user profile not found with ID: " + request.getUserId()));
+            if (user.getOrganization() == null || !user.getOrganization().getId().equals(organization.getId())) {
+                throw new IllegalArgumentException("Tenant user profile does not belong to the specified Organization");
+            }
+            tenant.setUser(user);
+        }
 
         // Process AES PII Encryption & ID proof fields in Service Layer
         if (request.getIdProofNumber() != null && !request.getIdProofNumber().isBlank()) {
             tenant.setIdProofNumber(piiEncryptionService.encrypt(request.getIdProofNumber()));
             if (request.getIdProofNumber().length() >= 4) {
-                tenant.setIdProofLast4(request.getIdProofNumber().substring(request.getIdProofNumber().length() - 4));
+                tenant.setIdProofLast4("XXXX-XXXX-" + request.getIdProofNumber().substring(request.getIdProofNumber().length() - 4));
             }
         }
         if (tenant.getIdProofType() == null || tenant.getIdProofType().isBlank()) {
             tenant.setIdProofType("Aadhaar");
         }
-        if (tenant.getIsIdVerified() == null) {
-            tenant.setIsIdVerified(false);
-        }
+        tenant.setKycStatus(VerificationStatus.PENDING);
 
         Tenant savedTenant = tenantRepository.save(tenant);
         return tenantMapper.toResponse(savedTenant);
@@ -89,5 +89,15 @@ public class TenantServiceImpl implements TenantService {
                 .collect(Collectors.toList());
 
         return tenantMapper.toResponseList(tenants);
+    }
+
+    @Override
+    @Transactional
+    public TenantResponse verifyTenantKyc(UUID id, UUID organizationId, VerificationStatus status) {
+        tenantAccessService.validateUserOrganization(organizationId);
+        Tenant tenant = tenantRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + id));
+        tenant.setKycStatus(status);
+        return tenantMapper.toResponse(tenantRepository.save(tenant));
     }
 }

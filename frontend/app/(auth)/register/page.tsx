@@ -37,15 +37,7 @@ export default function RegisterPage() {
     try {
       const response = await apiClient.post('/api/v1/auth/register', formData);
       const data = response.data.data;
-      login(data.token, data.user ?? {
-        id: data.profileId,
-        email: data.email,
-        fullName: data.fullName,
-        role: data.role,
-        organizationId: data.organizationId,
-        organizationName: data.organizationName,
-        phone: data.phone,
-      });
+      login(data.token, data.user);
       router.push('/app');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Registration failed. Try again.'));

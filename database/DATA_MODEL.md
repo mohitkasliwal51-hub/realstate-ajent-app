@@ -70,7 +70,8 @@ Stores user accounts mapped to auth provider IDs (Supabase Auth / Spring Boot Us
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY` | User Unique ID | `"b1ee...0a22"` |
 | `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent agency | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
-| `email` | `TEXT` | `UNIQUE`, `NOT NULL` | Account Email Address | `"owner@sunshinepg.com"` |
+| `email` | `TEXT` | `NOT NULL` | Account Email Address | `"owner@sunshinepg.com"` |
+| `password_hash` | `TEXT` | `NOT NULL` | BCrypt password hash | `"$2a$..."` |
 | `phone` | `TEXT` | - | Primary Phone Number | `"+919876543210"` |
 | `full_name` | `TEXT` | `NOT NULL` | Full Name of user | `"Rajesh Sharma"` |
 | `avatar_url` | `TEXT` | - | Profile Picture URL | `"https://cdn.brokerprop.com/avatars/user1.jpg"` |
@@ -171,27 +172,19 @@ Stores resident profiles, emergency contacts, and verified KYC information (with
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Tenant ID | `"f5cc...0e66"` |
 | `organization_id`| `UUID` | `FOREIGN KEY` ➔ `organizations(id)` | Parent Organization | `"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"` |
-| `owner_id` | `UUID` | `FOREIGN KEY` ➔ `profiles(id)` | Assigned Broker/Owner | `"b1ee...0a22"` |
+| `user_id` | `UUID` | `UNIQUE`, nullable `FOREIGN KEY` ➔ `profiles(id)` | Optional linked tenant login profile | `"c2ff...1b33"` |
 | `full_name` | `TEXT` | `NOT NULL` | Tenant Full Name | `"Aarav Mehta"` |
 | `email` | `TEXT` | - | Tenant Email Address | `"aarav.mehta@gmail.com"` |
 | `phone` | `TEXT` | `NOT NULL` | Tenant Mobile Number | `"+919812345678"` |
-| `alternate_phone`| `TEXT` | - | Alternate Phone Number | `"+919812345679"` |
-| `gender` | `TEXT` | - | Gender | `"Male"` |
-| `date_of_birth` | `DATE` | - | Date of Birth | `"2001-05-14"` |
 | `permanent_address`| `TEXT` | `NOT NULL` | Permanent Home Address | `"House 12, Civil Lines, Jaipur, Rajasthan 302006"` |
-| `occupation` | `TEXT` | - | Occupation / Profession | `"Software Engineer"` |
-| `organization_or_college`| `TEXT` | - | Employer / University Name | `"Infosys Limited"` |
-| `work_address` | `TEXT` | - | Work / College Address | `"Phase 1, Hinjewadi IT Park, Pune"` |
 | `emergency_contact_name`| `TEXT` | - | Emergency Contact Name | `"Suresh Mehta"` |
 | `emergency_contact_phone`| `TEXT` | - | Emergency Contact Phone | `"+919414012345"` |
 | `emergency_contact_relation`| `TEXT` | - | Relationship | `"Father"` |
 | `id_proof_type` | `TEXT` | `DEFAULT 'Aadhaar'` | Document Type | `"Aadhaar"` |
-| `id_proof_last4` | `VARCHAR(4)`| - | Unencrypted last 4 digits for UI | `"4921"` |
+| `id_proof_last4` | `VARCHAR(20)`| - | Masked ID value for UI | `"XXXX-XXXX-4921"` |
 | `id_proof_number`| `TEXT` | - | Encrypted document ID (AES-256) | `"pgp:encrypted:a8f912..."` |
-| `is_id_verified`| `BOOLEAN` | `DEFAULT FALSE` | Surepass/Digio verification status | `true` |
-| `id_proof_front_url`| `TEXT` | - | Aadhaar Front Scan URL | `"https://cdn.brokerprop.com/docs/t1_aadhaar_front.pdf"` |
-| `id_proof_back_url`| `TEXT` | - | Aadhaar Back Scan URL | `"https://cdn.brokerprop.com/docs/t1_aadhaar_back.pdf"` |
-| `tenant_photo_url`| `TEXT` | - | Passport Photo URL | `"https://cdn.brokerprop.com/docs/t1_photo.jpg"` |
+| `id_proof_document_url`| `TEXT` | - | Uploaded identity document URL | `"https://cdn.brokerprop.com/docs/t1_id.pdf"` |
+| `kyc_status` | `verification_status` | `DEFAULT 'PENDING'` | Tenant KYC workflow status | `"PENDING"` |
 | `metadata` | `JSONB` | `DEFAULT '{}'::jsonb` | Custom tenant metadata | `{"vehicle_number": "MH-12-AB-1234"}` |
 | `created_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record creation timestamp | `"2026-09-25T10:00:00Z"` |
 | `updated_at` | `TIMESTAMPTZ`| `DEFAULT NOW()` | Record last updated timestamp | `"2026-09-25T10:00:00Z"` |

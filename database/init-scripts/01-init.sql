@@ -77,9 +77,7 @@ CREATE TYPE payment_mode AS ENUM (
 );
 
 CREATE TYPE verification_status AS ENUM (
-    'NOT_STARTED',
     'PENDING',
-    'SUBMITTED',
     'VERIFIED',
     'REJECTED'
 );
@@ -149,7 +147,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Links to auth.users or Spring Boot User ID
     organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
     email TEXT NOT NULL,                             -- Unique within the organization
-    password TEXT,                                   -- BCrypt hashed password (nullable for OAuth / SSO users)
+    password_hash TEXT NOT NULL,                     -- BCrypt hashed password
     phone TEXT,
     full_name TEXT NOT NULL,
     avatar_url TEXT,
@@ -202,7 +200,7 @@ CREATE TABLE IF NOT EXISTS public.branding_settings (
 CREATE TABLE IF NOT EXISTS public.properties (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID UNIQUE REFERENCES public.profiles(id) ON DELETE SET NULL,
     name TEXT NOT NULL,                              -- e.g. "Sunshine Heights" or "GreenStays PG"
     type property_type NOT NULL DEFAULT 'PG',        -- PG vs FLAT vs COMMERCIAL
     address TEXT NOT NULL,
@@ -249,29 +247,20 @@ CREATE TABLE IF NOT EXISTS public.units (
 CREATE TABLE IF NOT EXISTS public.tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     email TEXT,
     phone TEXT NOT NULL,
-    alternate_phone TEXT,
-    gender TEXT,
-    date_of_birth DATE,
     permanent_address TEXT NOT NULL,
-    occupation TEXT,                                 -- Student, Working Professional
-    organization_or_college TEXT,                    -- Company / College Name
-    work_address TEXT,
     emergency_contact_name TEXT,
     emergency_contact_phone TEXT,
     emergency_contact_relation TEXT,
     
     -- Identity Proofs (Compliance & AES-256 / pgp_sym_encrypt Ready)
     id_proof_type TEXT DEFAULT 'Aadhaar',            -- Aadhaar, PAN, Passport, Driving License
-    id_proof_last4 VARCHAR(4),                       -- Unencrypted last 4 digits for UI display (e.g., "4921")
+    id_proof_last4 VARCHAR(20),                      -- Masked display value (e.g., "XXXX-XXXX-9012")
     id_proof_number TEXT,                            -- AES-256 / pgp_sym_encrypt encrypted string
-    is_id_verified BOOLEAN DEFAULT FALSE,
-    id_proof_front_url TEXT,
-    id_proof_back_url TEXT,
-    tenant_photo_url TEXT,
+    id_proof_document_url TEXT,
+    kyc_status verification_status NOT NULL DEFAULT 'PENDING',
     
     metadata JSONB DEFAULT '{}'::jsonb,              -- Future-proof tenant attributes
     created_at TIMESTAMPTZ DEFAULT NOW(),

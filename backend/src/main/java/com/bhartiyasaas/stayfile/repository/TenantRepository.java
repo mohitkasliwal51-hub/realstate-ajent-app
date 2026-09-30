@@ -13,5 +13,6 @@ import java.util.UUID;
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     List<Tenant> findByOrganizationId(UUID organizationId);
     Optional<Tenant> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    Optional<Tenant> findByOrganizationIdAndEmail(UUID organizationId, String email);
     Optional<Tenant> findByOrganizationIdAndPhone(UUID organizationId, String phone);
 }

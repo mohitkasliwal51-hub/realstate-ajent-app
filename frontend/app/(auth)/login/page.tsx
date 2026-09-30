@@ -36,15 +36,7 @@ export default function LoginPage() {
         password,
       });
       const data = response.data.data;
-      login(data.token, data.user ?? {
-        id: data.profileId,
-        email: data.email,
-        fullName: data.fullName,
-        role: data.role,
-        organizationId: data.organizationId,
-        organizationName: data.organizationName,
-        phone: data.phone,
-      });
+      login(data.token, data.user);
       router.push('/app');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Login failed. Please check credentials.'));

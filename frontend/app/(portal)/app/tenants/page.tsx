@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, Plus, Mail, Phone } from 'lucide-react';
+import { Users, Plus, Mail, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { tenantApi, Tenant } from '@/lib/api/tenantApi';
+import { tenantApi, Tenant, VerificationStatus } from '@/lib/api/tenantApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -15,6 +15,7 @@ export default function TenantsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -22,6 +23,7 @@ export default function TenantsPage() {
     phone: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    emergencyContactRelation: '',
     permanentAddress: '',
     idProofType: 'Aadhaar Card',
     idProofNumber: '',
@@ -51,16 +53,17 @@ export default function TenantsPage() {
     try {
       await tenantApi.createTenant({
         organizationId: user.organizationId,
-        ownerId: user.id,
         ...formData,
       });
       setIsModalOpen(false);
+      setCurrentStep(1);
       setFormData({
         fullName: '',
         email: '',
         phone: '',
         emergencyContactName: '',
         emergencyContactPhone: '',
+        emergencyContactRelation: '',
         permanentAddress: '',
         idProofType: 'Aadhaar Card',
         idProofNumber: '',
@@ -73,10 +76,10 @@ export default function TenantsPage() {
     }
   };
 
-  const getKycBadge = (isIdVerified: boolean) => {
-    return isIdVerified
-      ? <Badge variant="success">KYC Verified</Badge>
-      : <Badge variant="warning">KYC Pending</Badge>;
+  const getKycBadge = (status: VerificationStatus) => {
+    if (status === 'VERIFIED') return <Badge variant="success">KYC Verified</Badge>;
+    if (status === 'REJECTED') return <Badge variant="danger">KYC Rejected</Badge>;
+    return <Badge variant="warning">KYC Pending</Badge>;
   };
 
   return (
@@ -156,7 +159,7 @@ export default function TenantsPage() {
                         <p className="text-slate-500 truncate max-w-xs">{tenant.permanentAddress}</p>
                       )}
                     </td>
-                    <td className="px-6 py-4">{getKycBadge(tenant.isIdVerified)}</td>
+                    <td className="px-6 py-4">{getKycBadge(tenant.kycStatus)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -173,8 +176,18 @@ export default function TenantsPage() {
         description="Step-by-step basic details, emergency contact & KYC info"
       >
         <form onSubmit={handleCreateTenant} className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Step {currentStep} of 5</p>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <span key={step} className={`h-1.5 w-6 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-slate-200'}`} />
+              ))}
+            </div>
+          </div>
+
+          {currentStep === 1 && <>
           <Input
-            label="1. Full Name"
+            label="Full Name"
             placeholder="e.g. Rahul Sharma"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -199,8 +212,9 @@ export default function TenantsPage() {
               required
             />
           </div>
+          </>}
 
-          <div className="grid grid-cols-2 gap-3">
+          {currentStep === 2 && <div className="grid grid-cols-2 gap-3">
             <Input
               label="2. Emergency Contact Name"
               placeholder="Parent / Guardian"
@@ -214,15 +228,23 @@ export default function TenantsPage() {
               onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
             />
           </div>
+          }
 
-          <Input
-            label="3. Permanent Address"
+          {currentStep === 2 && <Input
+            label="Relation"
+            placeholder="Parent / Guardian"
+            value={formData.emergencyContactRelation}
+            onChange={(e) => setFormData({ ...formData, emergencyContactRelation: e.target.value })}
+          />}
+
+          {currentStep === 3 && <Input
+            label="Permanent Address"
             placeholder="Home address details"
             value={formData.permanentAddress}
             onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-          />
+          />}
 
-          <div className="grid grid-cols-2 gap-3">
+          {currentStep === 4 && <div className="grid grid-cols-2 gap-3">
             <div className="w-full flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                 4. ID Proof Type
@@ -235,7 +257,6 @@ export default function TenantsPage() {
                 <option value="Aadhaar Card">Aadhaar Card</option>
                 <option value="PAN Card">PAN Card</option>
                 <option value="Passport">Passport</option>
-                <option value="Voter ID">Voter ID</option>
                 <option value="Driving License">Driving License</option>
               </select>
             </div>
@@ -247,14 +268,26 @@ export default function TenantsPage() {
               onChange={(e) => setFormData({ ...formData, idProofNumber: e.target.value })}
             />
           </div>
+          }
+
+          {currentStep === 5 && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+            Review complete. Submit this tenant profile for KYC verification.
+          </div>}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              Complete Tenant Onboarding
-            </Button>
+            {currentStep > 1 && <Button type="button" variant="outline" onClick={() => setCurrentStep((step) => step - 1)}>
+              <ChevronLeft className="mr-1 h-4 w-4" /> Back
+            </Button>}
+            {currentStep < 5 ? (
+              <Button type="button" onClick={() => setCurrentStep((step) => step + 1)}>
+                Next <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button type="submit" isLoading={isSubmitting}>Submit for Verification</Button>
+            )}
           </div>
         </form>
       </Modal>
