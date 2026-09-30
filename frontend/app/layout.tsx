@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/lib/auth/AuthContext';
-import '@/styles/globals.css';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'StayFile - Real Estate & Rental Property OS',
