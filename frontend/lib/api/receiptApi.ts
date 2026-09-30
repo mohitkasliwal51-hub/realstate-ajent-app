@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 
 export type ReceiptType = 'SECURITY_DEPOSIT' | 'RENT_PAYMENT' | 'UTILITY_BILL' | 'MAINTENANCE' | 'TOKEN_BOOKING' | 'OTHER';
-export type PaymentMode = 'UPI' | 'BANK_TRANSFER' | 'CASH' | 'CHEQUE' | 'RAZORPAY_ONLINE' | 'OTHER';
+export type PaymentMode = 'UPI' | 'NET_BANKING' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'CASH' | 'CHEQUE';
 
 export interface Receipt {
   id: string;
@@ -9,10 +9,10 @@ export interface Receipt {
   leaseId: string;
   tenantId: string;
   receiptNumber: string;
-  type: ReceiptType;
+  receiptType: ReceiptType;
   amount: number;
   paymentMode: PaymentMode;
-  transactionRef?: string;
+  transactionReference?: string;
   paymentDate: string;
   notes?: string;
   receiptPdfUrl?: string;
@@ -22,13 +22,11 @@ export interface Receipt {
 
 export interface ReceiptCreatePayload {
   organizationId: string;
-  ownerId: string;
   leaseId: string;
-  tenantId: string;
-  type: ReceiptType;
+  receiptType: ReceiptType;
   amount: number;
   paymentMode: PaymentMode;
-  transactionRef?: string;
+  transactionReference?: string;
   notes?: string;
 }
 

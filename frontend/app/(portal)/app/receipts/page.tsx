@@ -5,7 +5,6 @@ import { Receipt as ReceiptIcon, Plus, Download, CreditCard, CheckCircle2 } from
 import { useAuth } from '@/lib/auth/AuthContext';
 import { receiptApi, Receipt, ReceiptType, PaymentMode } from '@/lib/api/receiptApi';
 import { leaseApi, Lease } from '@/lib/api/leaseApi';
-import { tenantApi, Tenant } from '@/lib/api/tenantApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -16,7 +15,6 @@ export default function ReceiptsPage() {
   const { user } = useAuth();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,10 +22,10 @@ export default function ReceiptsPage() {
   const [formData, setFormData] = useState({
     leaseId: '',
     tenantId: '',
-    type: 'RENT_PAYMENT' as ReceiptType,
+    receiptType: 'RENT_PAYMENT' as ReceiptType,
     amount: 15000,
     paymentMode: 'UPI' as PaymentMode,
-    transactionRef: '',
+    transactionReference: '',
     notes: 'Monthly rent payment received via StayFile OS.',
   });
 
@@ -35,14 +33,12 @@ export default function ReceiptsPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const [receiptsRes, leasesRes, tenantsRes] = await Promise.all([
+      const [receiptsRes, leasesRes] = await Promise.all([
         receiptApi.getReceipts(user.organizationId),
         leaseApi.getLeases(user.organizationId),
-        tenantApi.getTenants(user.organizationId),
       ]);
       setReceipts(receiptsRes || []);
-      setLeases(leasesRes || []);
-      setTenants(tenantsRes || []);
+      setLeases((leasesRes || []).filter((lease) => lease.status === 'ACTIVE'));
     } catch (err) {
       console.error('Failed to load receipt data', err);
     } finally {
@@ -60,7 +56,6 @@ export default function ReceiptsPage() {
       setFormData({
         ...formData,
         leaseId: selectedLease.id,
-        tenantId: selectedLease.tenantId,
         amount: selectedLease.monthlyRent,
       });
     }
@@ -73,7 +68,6 @@ export default function ReceiptsPage() {
     try {
       await receiptApi.createReceipt({
         organizationId: user.organizationId,
-        ownerId: user.id,
         ...formData,
       });
       setIsModalOpen(false);
@@ -149,14 +143,14 @@ export default function ReceiptsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 space-y-1">
-                      <Badge variant="purple">{receipt.type}</Badge>
+                      <Badge variant="purple">{receipt.receiptType}</Badge>
                       <p className="text-slate-500 text-[11px] font-semibold">{receipt.paymentMode}</p>
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900 text-sm">
                       {formatCurrency(receipt.amount)}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
-                      {receipt.transactionRef || 'N/A'}
+                      {receipt.transactionReference || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button size="sm" variant="secondary" onClick={() => handleDownloadPdf(receipt.id)}>
@@ -203,8 +197,8 @@ export default function ReceiptsPage() {
               </label>
               <select
                 className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as ReceiptType })}
+                value={formData.receiptType}
+                onChange={(e) => setFormData({ ...formData, receiptType: e.target.value as ReceiptType })}
               >
                 <option value="RENT_PAYMENT">Rent Payment</option>
                 <option value="SECURITY_DEPOSIT">Security Deposit</option>
@@ -224,8 +218,9 @@ export default function ReceiptsPage() {
                 onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}
               >
                 <option value="UPI">UPI / GPay / PhonePe</option>
-                <option value="BANK_TRANSFER">Bank Transfer / NEFT / IMPS</option>
-                <option value="RAZORPAY_ONLINE">Online Gateway</option>
+                <option value="NET_BANKING">Net Banking</option>
+                <option value="CREDIT_CARD">Credit Card</option>
+                <option value="DEBIT_CARD">Debit Card</option>
                 <option value="CASH">Cash</option>
                 <option value="CHEQUE">Cheque</option>
               </select>
@@ -243,8 +238,8 @@ export default function ReceiptsPage() {
             <Input
               label="Transaction Ref / UTR #"
               placeholder="e.g. UPI/123456789"
-                value={formData.transactionRef}
-                onChange={(e) => setFormData({ ...formData, transactionRef: e.target.value })}
+                value={formData.transactionReference}
+                onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
             />
           </div>
 

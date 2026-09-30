@@ -16,7 +16,6 @@ public interface ReceiptMapper {
     @Mapping(target = "leaseId", source = "lease.id")
     @Mapping(target = "tenantId", source = "tenant.id")
     @Mapping(target = "tenantName", source = "tenant.fullName")
-    @Mapping(target = "ownerId", source = "owner.id")
     ReceiptResponse toResponse(Receipt receipt);
 
     List<ReceiptResponse> toResponseList(List<Receipt> receipts);
@@ -26,8 +25,7 @@ public interface ReceiptMapper {
     @Mapping(target = "organization", ignore = true)
     @Mapping(target = "lease", ignore = true)
     @Mapping(target = "tenant", ignore = true)
-    @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "receiptPdfUrl", ignore = true)
+    @Mapping(target = "pdfUrl", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

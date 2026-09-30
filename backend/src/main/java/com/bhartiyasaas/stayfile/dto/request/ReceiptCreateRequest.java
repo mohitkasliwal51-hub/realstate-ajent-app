@@ -26,14 +26,8 @@ public class ReceiptCreateRequest {
     @NotNull(message = "Lease ID is required")
     private UUID leaseId;
 
-    @NotNull(message = "Tenant ID is required")
-    private UUID tenantId;
-
-    @NotNull(message = "Owner ID is required")
-    private UUID ownerId;
-
     @NotNull(message = "Receipt type is required")
-    private ReceiptType type;
+    private ReceiptType receiptType;
 
     @NotNull(message = "Amount is required")
     private BigDecimal amount;
@@ -41,9 +35,7 @@ public class ReceiptCreateRequest {
     @NotNull(message = "Payment mode is required")
     private PaymentMode paymentMode;
 
-    private String transactionRef;
+    private String transactionReference;
     private LocalDate paymentDate;
-    private LocalDate periodStart;
-    private LocalDate periodEnd;
     private String notes;
 }

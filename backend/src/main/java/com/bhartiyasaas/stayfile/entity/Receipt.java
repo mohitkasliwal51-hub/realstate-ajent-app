@@ -42,15 +42,11 @@ public class Receipt {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private Profile owner;
-
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
-    private ReceiptType type = ReceiptType.RENT_PAYMENT;
+    private ReceiptType receiptType = ReceiptType.RENT_PAYMENT;
 
     @Column(nullable = false)
     private BigDecimal amount;
@@ -62,22 +58,16 @@ public class Receipt {
     private PaymentMode paymentMode = PaymentMode.UPI;
 
     @Column(name = "transaction_ref")
-    private String transactionRef;
+    private String transactionReference;
 
     @Builder.Default
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate = LocalDate.now();
 
-    @Column(name = "period_start")
-    private LocalDate periodStart;
-
-    @Column(name = "period_end")
-    private LocalDate periodEnd;
-
     private String notes;
 
-    @Column(name = "receipt_pdf_url")
-    private String receiptPdfUrl;
+    @Column(name = "pdf_url")
+    private String pdfUrl;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

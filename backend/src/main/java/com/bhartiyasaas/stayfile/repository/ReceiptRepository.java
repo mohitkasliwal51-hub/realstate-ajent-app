@@ -16,4 +16,6 @@ public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
     List<Receipt> findByTenantId(UUID tenantId);
     Optional<Receipt> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Optional<Receipt> findByOrganizationIdAndReceiptNumber(UUID organizationId, String receiptNumber);
+    Optional<Receipt> findTopByOrganizationIdAndReceiptNumberStartingWithOrderByReceiptNumberDesc(
+            UUID organizationId, String prefix);
 }

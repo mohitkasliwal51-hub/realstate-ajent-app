@@ -2,9 +2,9 @@ package com.bhartiyasaas.stayfile.entity.enums;
 
 public enum PaymentMode {
     UPI,
-    BANK_TRANSFER,
+    NET_BANKING,
+    CREDIT_CARD,
+    DEBIT_CARD,
     CASH,
-    CHEQUE,
-    RAZORPAY_ONLINE,
-    OTHER
+    CHEQUE
 }

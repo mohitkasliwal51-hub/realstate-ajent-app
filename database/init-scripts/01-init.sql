@@ -69,11 +69,11 @@ CREATE TYPE receipt_type AS ENUM (
 
 CREATE TYPE payment_mode AS ENUM (
     'UPI',                -- Google Pay / PhonePe / Paytm / BHIM
-    'BANK_TRANSFER',      -- NEFT / RTGS / IMPS
+    'NET_BANKING',        -- Internet banking
+    'CREDIT_CARD',        -- Credit card
+    'DEBIT_CARD',         -- Debit card
     'CASH',               -- Physical Cash
-    'CHEQUE',             -- Bank Cheque
-    'RAZORPAY_ONLINE',    -- Payment Gateway Online
-    'OTHER'
+    'CHEQUE'              -- Bank Cheque
 );
 
 CREATE TYPE verification_status AS ENUM (
@@ -104,8 +104,7 @@ CREATE TYPE whatsapp_status AS ENUM (
 );
 
 CREATE TYPE bbps_status AS ENUM (
-    'BILL_FETCHED',
-    'PAYMENT_INITIATED',
+    'PENDING',
     'SUCCESS',
     'FAILED'
 );
@@ -326,17 +325,14 @@ CREATE TABLE IF NOT EXISTS public.receipts (
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     lease_id UUID NOT NULL REFERENCES public.leases(id) ON DELETE RESTRICT,
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
-    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     
-    type receipt_type NOT NULL DEFAULT 'RENT_PAYMENT',
+    receipt_type receipt_type NOT NULL DEFAULT 'RENT_PAYMENT',
     amount DECIMAL(10, 2) NOT NULL,
     payment_mode payment_mode NOT NULL DEFAULT 'UPI',
-    transaction_ref TEXT,                            -- UTR Number / Cheque No. / Gateway Transaction ID
+    transaction_reference TEXT,                      -- UTR Number / Cheque No. / Gateway Transaction ID
     payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    period_start DATE,                               -- e.g. 2026-10-01
-    period_end DATE,                                 -- e.g. 2026-10-31
     notes TEXT,
-    receipt_pdf_url TEXT,
+    pdf_url TEXT,
     
     metadata JSONB DEFAULT '{}'::jsonb,              -- Custom receipt payload metadata
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -347,25 +343,14 @@ CREATE TABLE IF NOT EXISTS public.receipts (
 CREATE TABLE IF NOT EXISTS public.bbps_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    lease_id UUID REFERENCES public.leases(id) ON DELETE SET NULL,
-    
-    biller_id TEXT NOT NULL,                         -- e.g. MSEDCL000MAH01
-    biller_name TEXT NOT NULL,                       -- e.g. MSEDCL Electricity - Maharashtra
-    customer_param_name TEXT DEFAULT 'Consumer Number',
-    customer_param_value TEXT NOT NULL,              -- Consumer No e.g. 102938475612
-    
-    amount DECIMAL(10, 2) NOT NULL,
-    bill_date DATE,
+    property_id UUID NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
+    utility_type TEXT NOT NULL,                      -- ELECTRICITY / WATER
+    biller_id TEXT NOT NULL,
+    consumer_number TEXT NOT NULL,
+    bill_amount DECIMAL(10, 2) NOT NULL,
     due_date DATE,
-    payment_date TIMESTAMPTZ,                        -- Exact Timestamp when payment succeeded for accounting
-    status bbps_status NOT NULL DEFAULT 'BILL_FETCHED',
-    
-    bbps_reference_id TEXT,                          -- Official BBPS Reference Approval ID
-    razorpay_payment_id TEXT,                        -- Payment Gateway Payment ID
-    receipt_pdf_url TEXT,
-    
-    metadata JSONB DEFAULT '{}'::jsonb,
+    status bbps_status NOT NULL DEFAULT 'PENDING',
+    transaction_ref TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

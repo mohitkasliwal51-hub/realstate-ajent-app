@@ -32,52 +32,32 @@ public class BbpsTransaction {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
+    @JoinColumn(name = "property_id", nullable = false)
+    private Property property;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lease_id")
-    private Lease lease;
+    @Column(name = "utility_type", nullable = false)
+    private String utilityType;
 
     @Column(name = "biller_id", nullable = false)
     private String billerId;
 
-    @Column(name = "biller_name", nullable = false)
-    private String billerName;
+    @Column(name = "consumer_number", nullable = false)
+    private String consumerNumber;
 
-    @Builder.Default
-    @Column(name = "customer_param_name")
-    private String customerParamName = "Consumer Number";
-
-    @Column(name = "customer_param_value", nullable = false)
-    private String customerParamValue;
-
-    @Column(nullable = false)
+    @Column(name = "bill_amount", nullable = false)
     private BigDecimal amount;
-
-    @Column(name = "bill_date")
-    private LocalDate billDate;
 
     @Column(name = "due_date")
     private LocalDate dueDate;
-
-    @Column(name = "payment_date")
-    private OffsetDateTime paymentDate;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
-    private BbpsStatus status = BbpsStatus.BILL_FETCHED;
+    private BbpsStatus status = BbpsStatus.PENDING;
 
-    @Column(name = "bbps_reference_id")
-    private String bbpsReferenceId;
-
-    @Column(name = "razorpay_payment_id")
-    private String razorpayPaymentId;
-
-    @Column(name = "receipt_pdf_url")
-    private String receiptPdfUrl;
+    @Column(name = "transaction_ref")
+    private String transactionRef;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

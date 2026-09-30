@@ -10,6 +10,7 @@ import com.bhartiyasaas.stayfile.entity.*;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.ReceiptMapper;
 import com.bhartiyasaas.stayfile.repository.*;
+import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 import com.bhartiyasaas.stayfile.service.ReceiptService;
@@ -26,8 +27,6 @@ public class ReceiptServiceImpl implements ReceiptService {
     private final ReceiptRepository receiptRepository;
     private final OrganizationRepository organizationRepository;
     private final LeaseRepository leaseRepository;
-    private final TenantRepository tenantRepository;
-    private final ProfileRepository profileRepository;
     private final PdfGeneratorService pdfGeneratorService;
     private final ReceiptMapper receiptMapper;
     private final TenantAccessService tenantAccessService;
@@ -43,36 +42,25 @@ public class ReceiptServiceImpl implements ReceiptService {
         Lease lease = leaseRepository.findById(request.getLeaseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + request.getLeaseId()));
 
-        Tenant tenant = tenantRepository.findById(request.getTenantId())
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + request.getTenantId()));
-
-        Profile owner = profileRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
-
         if (lease.getOrganization() == null || !lease.getOrganization().getId().equals(organization.getId())) {
             throw new IllegalArgumentException("Lease does not belong to the specified Organization");
         }
-        if (tenant.getOrganization() == null || !tenant.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Tenant does not belong to the specified Organization");
-        }
-        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
-        }
-        if (lease.getTenant() == null || !lease.getTenant().getId().equals(tenant.getId())) {
-            throw new IllegalArgumentException("The specified Tenant does not match the Tenant associated with the Lease");
+        if (lease.getStatus() != LeaseStatus.ACTIVE) {
+            throw new IllegalStateException("Receipts can only be issued for active leases");
         }
 
-        String receiptNumber = String.format("REC-%s-%d-%s",
-                organization.getSlug().toUpperCase(),
-                LocalDate.now().getYear(),
-            UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        String prefix = "REC-" + LocalDate.now().getYear() + "-";
+        int nextSequence = receiptRepository
+                .findTopByOrganizationIdAndReceiptNumberStartingWithOrderByReceiptNumberDesc(organization.getId(), prefix)
+                .map(receipt -> Integer.parseInt(receipt.getReceiptNumber().substring(prefix.length())) + 1)
+                .orElse(1);
+        String receiptNumber = prefix + String.format("%06d", nextSequence);
 
         Receipt receipt = receiptMapper.toEntity(request);
         receipt.setReceiptNumber(receiptNumber);
         receipt.setOrganization(organization);
         receipt.setLease(lease);
-        receipt.setTenant(tenant);
-        receipt.setOwner(owner);
+        receipt.setTenant(lease.getTenant());
 
         Receipt savedReceipt = receiptRepository.save(receipt);
         return receiptMapper.toResponse(savedReceipt);

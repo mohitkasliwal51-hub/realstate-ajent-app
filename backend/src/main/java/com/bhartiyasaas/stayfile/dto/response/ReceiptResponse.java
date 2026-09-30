@@ -25,16 +25,13 @@ public class ReceiptResponse {
     private UUID leaseId;
     private UUID tenantId;
     private String tenantName;
-    private UUID ownerId;
-    private ReceiptType type;
+    private ReceiptType receiptType;
     private BigDecimal amount;
     private PaymentMode paymentMode;
-    private String transactionRef;
+    private String transactionReference;
     private LocalDate paymentDate;
-    private LocalDate periodStart;
-    private LocalDate periodEnd;
     private String notes;
-    private String receiptPdfUrl;
+    private String pdfUrl;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }
