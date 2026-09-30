@@ -30,7 +30,10 @@ services:
       dockerfile: Dockerfile
     container_name: stayfile-backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       # Database configuration
       SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/stayfile
       SPRING_DATASOURCE_USERNAME: postgres
@@ -99,6 +102,3 @@ volumes:
 networks:
   stayfile-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
