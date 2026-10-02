@@ -34,6 +34,10 @@ public class Unit {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_unit_id")
+    private Unit parentUnit;
+
     @Column(name = "unit_number", nullable = false)
     private String unitNumber;
 

@@ -20,6 +20,7 @@ public class UnitResponse {
     private UUID id;
     private UUID propertyId;
     private UUID organizationId;
+    private UUID parentUnitId;
     private String unitNumber;
     private Integer floorNumber;
     private SharingType sharingType;

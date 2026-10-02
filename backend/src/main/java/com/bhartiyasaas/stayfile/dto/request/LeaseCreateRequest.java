@@ -1,7 +1,9 @@
 package com.bhartiyasaas.stayfile.dto.request;
 
+import com.bhartiyasaas.stayfile.entity.enums.BrokerageFeeType;
+import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.entity.enums.MaintenanceFeeType;
 import jakarta.validation.constraints.NotNull;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,8 +12,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
-
-import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 
 @Data
 @NoArgsConstructor
@@ -25,8 +25,8 @@ public class LeaseCreateRequest {
     @NotNull(message = "Tenant ID is required")
     private UUID tenantId;
 
-    @NotNull(message = "Owner ID is required")
-    private UUID ownerId;
+    private UUID landlordId;
+    private UUID createdById;
 
     private UUID agreementTemplateId;
 
@@ -51,8 +51,17 @@ public class LeaseCreateRequest {
     @Builder.Default
     private Integer lockInPeriodMonths = 6;
 
-    private String customClauses;
+    @Builder.Default
+    private BrokerageFeeType brokerageFeeType = BrokerageFeeType.NONE;
+    private BigDecimal brokerageAmount;
 
+    @Builder.Default
+    private MaintenanceFeeType maintenanceFeeType = MaintenanceFeeType.NONE;
+    private BigDecimal maintenanceFeeAmount;
+
+    private BigDecimal agreementFeeAmount;
+
+    private String customClauses;
     private String termsAndConditions;
 
     @Builder.Default

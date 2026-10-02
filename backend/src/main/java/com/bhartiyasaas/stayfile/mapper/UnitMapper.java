@@ -9,11 +9,12 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface UnitMapper {
 
     @Mapping(target = "propertyId", source = "property.id")
     @Mapping(target = "organizationId", source = "organization.id")
+    @Mapping(target = "parentUnitId", source = "parentUnit.id")
     @Mapping(target = "currentLeaseId", source = "currentLease.id")
     UnitResponse toResponse(Unit unit);
 
@@ -22,6 +23,7 @@ public interface UnitMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "property", ignore = true)
     @Mapping(target = "organization", ignore = true)
+    @Mapping(target = "parentUnit", ignore = true)
     @Mapping(target = "currentLease", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

@@ -1,5 +1,6 @@
 package com.bhartiyasaas.stayfile.entity;
 
+import com.bhartiyasaas.stayfile.entity.enums.OrganizationType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -28,6 +29,12 @@ public class Organization {
 
     @Column(nullable = false, unique = true)
     private String slug;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "organization_type", nullable = false)
+    @Builder.Default
+    private OrganizationType organizationType = OrganizationType.OWNER;
 
     @Builder.Default
     @Column(name = "is_active")

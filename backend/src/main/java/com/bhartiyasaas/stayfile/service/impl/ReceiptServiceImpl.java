@@ -28,6 +28,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     private final ReceiptRepository receiptRepository;
     private final OrganizationRepository organizationRepository;
     private final LeaseRepository leaseRepository;
+    private final InvoiceRepository invoiceRepository;
     private final PdfGeneratorService pdfGeneratorService;
     private final ReceiptMapper receiptMapper;
     private final TenantAccessService tenantAccessService;
@@ -49,6 +50,19 @@ public class ReceiptServiceImpl implements ReceiptService {
         if (lease.getStatus() != LeaseStatus.ACTIVE) {
             throw new IllegalStateException("Receipts can only be issued for active leases");
         }
+        if (!lease.getTenant().getId().equals(request.getTenantId())) {
+            throw new IllegalArgumentException("Receipt tenant does not match the lease");
+        }
+
+        Invoice invoice = null;
+        if (request.getInvoiceId() != null) {
+            invoice = invoiceRepository.findByIdAndOrganizationId(request.getInvoiceId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + request.getInvoiceId()));
+            if (!invoice.getLease().getId().equals(lease.getId())
+                    || !invoice.getTenant().getId().equals(lease.getTenant().getId())) {
+                throw new IllegalArgumentException("Invoice does not belong to the selected lease and tenant");
+            }
+        }
 
         String prefix = "REC-" + LocalDate.now().getYear() + "-";
         int nextSequence = receiptRepository
@@ -60,6 +74,7 @@ public class ReceiptServiceImpl implements ReceiptService {
         Receipt receipt = receiptMapper.toEntity(request);
         receipt.setReceiptNumber(receiptNumber);
         receipt.setOrganization(organization);
+        receipt.setInvoice(invoice);
         receipt.setLease(lease);
         receipt.setTenant(lease.getTenant());
 

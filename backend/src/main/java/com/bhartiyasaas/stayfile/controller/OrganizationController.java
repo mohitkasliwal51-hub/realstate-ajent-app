@@ -46,11 +46,11 @@ public class OrganizationController {
     public static class ShowcaseResponse {
         private String organizationName;
         private String organizationSlug;
-                private ShowcaseBrandingResponse branding;
+        private ShowcaseBrandingResponse branding;
         private List<PropertyResponse> properties;
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/organizations/{id}")
     public ResponseEntity<ApiResponse<OrganizationDetailsResponse>> getOrganizationDetails(@PathVariable UUID id) {
         tenantAccessService.validateUserOrganization(id);
@@ -69,7 +69,7 @@ public class OrganizationController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/organizations/{id}/branding")
     public ResponseEntity<ApiResponse<BrandingSettings>> updateBranding(
             @PathVariable UUID id,

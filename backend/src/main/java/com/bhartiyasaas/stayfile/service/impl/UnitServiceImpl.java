@@ -16,7 +16,6 @@ import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
-import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.UnitService;
 
 import java.util.List;
@@ -30,7 +29,6 @@ public class UnitServiceImpl implements UnitService {
     private final PropertyRepository propertyRepository;
     private final OrganizationRepository organizationRepository;
     private final UnitMapper unitMapper;
-    private final TenantAccessService tenantAccessService;
 
     @Override
     @Transactional
@@ -43,9 +41,16 @@ public class UnitServiceImpl implements UnitService {
         Property property = propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + request.getPropertyId()));
 
+        Unit parentUnit = null;
+        if (request.getParentUnitId() != null) {
+            parentUnit = unitRepository.findByIdAndOrganizationId(request.getParentUnitId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent unit not found with ID: " + request.getParentUnitId()));
+        }
+
         Unit unit = unitMapper.toEntity(request);
         unit.setOrganization(organization);
         unit.setProperty(property);
+        unit.setParentUnit(parentUnit);
         if (request.getStatus() == null) {
             unit.setStatus(UnitStatus.AVAILABLE);
         }
@@ -103,6 +108,12 @@ public class UnitServiceImpl implements UnitService {
         if (request.getStatus() != null) unit.setStatus(request.getStatus());
         if (request.getAmenities() != null) unit.setAmenities(request.getAmenities());
         if (request.getNotes() != null) unit.setNotes(request.getNotes());
+
+        if (request.getParentUnitId() != null) {
+            Unit parentUnit = unitRepository.findByIdAndOrganizationId(request.getParentUnitId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent unit not found with ID: " + request.getParentUnitId()));
+            unit.setParentUnit(parentUnit);
+        }
 
         Unit updatedUnit = unitRepository.save(unit);
         return unitMapper.toResponse(updatedUnit);

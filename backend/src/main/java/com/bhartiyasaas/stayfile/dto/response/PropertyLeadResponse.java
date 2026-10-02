@@ -21,6 +21,7 @@ public class PropertyLeadResponse {
     private UUID propertyId;
     private String propertyName;
     private UUID unitId;
+    private UUID assignedToId;
     private String name;
     private String phone;
     private String email;

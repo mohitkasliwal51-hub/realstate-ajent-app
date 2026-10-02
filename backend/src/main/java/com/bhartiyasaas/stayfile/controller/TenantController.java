@@ -26,7 +26,7 @@ public class TenantController {
 
     private final TenantService tenantService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @PostMapping
     public ResponseEntity<ApiResponse<TenantResponse>> createTenant(
             @Valid @RequestBody TenantCreateRequest request,
@@ -36,7 +36,7 @@ public class TenantController {
                 .body(ApiResponse.success(response, "Tenant onboarded successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TenantResponse>> getTenantById(
             @PathVariable UUID id,
@@ -45,7 +45,7 @@ public class TenantController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<TenantResponse>>> getTenantsByOrganization(
             @AuthenticationPrincipal SecurityUser currentUser) {
@@ -53,7 +53,7 @@ public class TenantController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PatchMapping("/{id}/kyc")
     public ResponseEntity<ApiResponse<TenantResponse>> verifyTenantKyc(
             @PathVariable UUID id,

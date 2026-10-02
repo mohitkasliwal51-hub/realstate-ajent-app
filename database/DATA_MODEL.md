@@ -189,6 +189,12 @@ Broker settlement ledger for paying landlords net rent collected minus agency co
    - Automatically marks `units.status = 'OCCUPIED'` and populates `units.current_lease_id` when a lease becomes `ACTIVE`.
    - Frees unit back to `AVAILABLE` when lease expires or is cancelled.
 2. **`trg_sync_invoice_payment_status`**:
-   - Automatically recalculates `invoices.paid_amount`, computes `balance_due`, and updates invoice status (`UNPAID` ➔ `PARTIAL` ➔ `PAID`) whenever a payment `receipt` is saved or updated.
-3. **Multi-Tenant Composite Indexes**:
+   - Automatically recalculates `invoices.paid_amount`, computes `balance_due`, and updates invoice status (`UNPAID` ➔ `PARTIAL` ➔ `PAID`) whenever a payment `receipt` is inserted, updated, or **deleted**.
+   - Handles receipt re-assignment across invoices cleanly.
+3. **Multi-Tenant Composite & Unique Indexes**:
+   - `idx_unique_monthly_rent_invoice`: Partial unique index on `(lease_id, billing_period_start)` for `MONTHLY_RENT` invoices to prevent duplicate monthly rent billing.
+   - `idx_invoices_overdue_lookup`: Partial index on `(organization_id, due_date)` WHERE `status = 'UNPAID'` for high-speed overdue invoice identification.
    - `idx_leases_org_status`, `idx_landlords_org`, `idx_invoices_org_status`, `idx_payouts_landlord`, `idx_meter_readings_unit`.
+4. **Row Level Security (RLS) Policies**:
+   - Organization-authenticated policies on `properties`, `units`, `leases`, `invoices`, `receipts`, and `landlord_payouts` enforcing database-level tenant isolation via `app.current_organization_id`.
+

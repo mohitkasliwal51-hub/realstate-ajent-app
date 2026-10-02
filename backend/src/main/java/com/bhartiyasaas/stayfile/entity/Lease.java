@@ -1,6 +1,8 @@
 package com.bhartiyasaas.stayfile.entity;
 
+import com.bhartiyasaas.stayfile.entity.enums.BrokerageFeeType;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.entity.enums.MaintenanceFeeType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,8 +41,12 @@ public class Lease {
     private Tenant tenant;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private Profile owner;
+    @JoinColumn(name = "landlord_id")
+    private Landlord landlord;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", nullable = false)
+    private Profile createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "agreement_template_id")
@@ -69,6 +75,30 @@ public class Lease {
     @Builder.Default
     @Column(name = "lock_in_period_months")
     private Integer lockInPeriodMonths = 6;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "brokerage_fee_type", nullable = false)
+    @Builder.Default
+    private BrokerageFeeType brokerageFeeType = BrokerageFeeType.NONE;
+
+    @Column(name = "brokerage_amount")
+    @Builder.Default
+    private BigDecimal brokerageAmount = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "maintenance_fee_type", nullable = false)
+    @Builder.Default
+    private MaintenanceFeeType maintenanceFeeType = MaintenanceFeeType.NONE;
+
+    @Column(name = "maintenance_fee_amount")
+    @Builder.Default
+    private BigDecimal maintenanceFeeAmount = BigDecimal.ZERO;
+
+    @Column(name = "agreement_fee_amount")
+    @Builder.Default
+    private BigDecimal agreementFeeAmount = BigDecimal.ZERO;
 
     @Column(name = "custom_clauses", columnDefinition = "text")
     private String customClauses;

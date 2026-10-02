@@ -27,7 +27,7 @@ public class ReceiptController {
 
     private final ReceiptService receiptService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @PostMapping
     public ResponseEntity<ApiResponse<ReceiptResponse>> createReceipt(
             @Valid @RequestBody ReceiptCreateRequest request,
@@ -37,7 +37,7 @@ public class ReceiptController {
                 .body(ApiResponse.success(response, "Receipt generated successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ReceiptResponse>> getReceiptById(
             @PathVariable UUID id,
@@ -46,7 +46,7 @@ public class ReceiptController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<ReceiptResponse>>> getReceiptsByOrganization(
             @AuthenticationPrincipal SecurityUser currentUser) {
@@ -54,7 +54,7 @@ public class ReceiptController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadReceiptPdf(
             @PathVariable UUID id,

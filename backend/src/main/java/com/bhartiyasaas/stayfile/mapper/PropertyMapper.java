@@ -9,18 +9,19 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PropertyMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
-    @Mapping(target = "ownerId", source = "owner.id")
+    @Mapping(target = "landlordId", source = "landlord.id")
+    @Mapping(target = "landlordName", source = "landlord.legalName")
     PropertyResponse toResponse(Property property);
 
     List<PropertyResponse> toResponseList(List<Property> properties);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "organization", ignore = true)
-    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "landlord", ignore = true)
     @Mapping(target = "metadata", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

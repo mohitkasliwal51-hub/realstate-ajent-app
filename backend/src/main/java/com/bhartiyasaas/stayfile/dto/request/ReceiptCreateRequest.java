@@ -1,7 +1,9 @@
 package com.bhartiyasaas.stayfile.dto.request;
 
+import com.bhartiyasaas.stayfile.entity.enums.PaymentMode;
+import com.bhartiyasaas.stayfile.entity.enums.ReceiptType;
 import jakarta.validation.constraints.NotNull;
-
+import jakarta.validation.constraints.DecimalMin;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,28 +13,34 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import com.bhartiyasaas.stayfile.entity.enums.PaymentMode;
-import com.bhartiyasaas.stayfile.entity.enums.ReceiptType;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ReceiptCreateRequest {
 
+    private UUID invoiceId;
+
     @NotNull(message = "Lease ID is required")
     private UUID leaseId;
 
-    @NotNull(message = "Receipt type is required")
-    private ReceiptType receiptType;
+    @NotNull(message = "Tenant ID is required")
+    private UUID tenantId;
+
+    @Builder.Default
+    private ReceiptType receiptType = ReceiptType.RENT_PAYMENT;
 
     @NotNull(message = "Amount is required")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
     private BigDecimal amount;
 
-    @NotNull(message = "Payment mode is required")
-    private PaymentMode paymentMode;
+    @Builder.Default
+    private PaymentMode paymentMode = PaymentMode.UPI;
 
     private String transactionReference;
-    private LocalDate paymentDate;
+
+    @Builder.Default
+    private LocalDate paymentDate = LocalDate.now();
+
     private String notes;
 }

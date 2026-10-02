@@ -9,13 +9,13 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ReceiptMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
+    @Mapping(target = "invoiceId", source = "invoice.id")
     @Mapping(target = "leaseId", source = "lease.id")
     @Mapping(target = "tenantId", source = "tenant.id")
-    @Mapping(target = "tenantName", source = "tenant.fullName")
     ReceiptResponse toResponse(Receipt receipt);
 
     List<ReceiptResponse> toResponseList(List<Receipt> receipts);
@@ -23,6 +23,7 @@ public interface ReceiptMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "receiptNumber", ignore = true)
     @Mapping(target = "organization", ignore = true)
+    @Mapping(target = "invoice", ignore = true)
     @Mapping(target = "lease", ignore = true)
     @Mapping(target = "tenant", ignore = true)
     @Mapping(target = "pdfUrl", ignore = true)

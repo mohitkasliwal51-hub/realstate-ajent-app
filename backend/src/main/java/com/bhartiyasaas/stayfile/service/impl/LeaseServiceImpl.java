@@ -19,9 +19,7 @@ import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.LeaseService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -33,6 +31,7 @@ public class LeaseServiceImpl implements LeaseService {
     private final OrganizationRepository organizationRepository;
     private final UnitRepository unitRepository;
     private final TenantRepository tenantRepository;
+    private final LandlordRepository landlordRepository;
     private final ProfileRepository profileRepository;
     private final AgreementTemplateRepository agreementTemplateRepository;
     private final PdfGeneratorService pdfGeneratorService;
@@ -61,15 +60,19 @@ public class LeaseServiceImpl implements LeaseService {
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + request.getTenantId()));
 
-        Profile owner = profileRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
-
         if (tenant.getOrganization() == null || !tenant.getOrganization().getId().equals(organizationId)) {
             throw new UnauthorizedException("Tenant does not belong to your Organization");
         }
-        if (owner.getOrganization() == null || !owner.getOrganization().getId().equals(organizationId)) {
-            throw new UnauthorizedException("Owner profile does not belong to your Organization");
+
+        Landlord landlord = null;
+        if (request.getLandlordId() != null) {
+            landlord = landlordRepository.findByIdAndManagingOrganizationId(request.getLandlordId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
         }
+
+        UUID creatorId = request.getCreatedById() != null ? request.getCreatedById() : currentUser.getProfileId();
+        Profile createdBy = profileRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Creator profile not found with ID: " + creatorId));
 
         // Rule 1: Prevent leasing occupied, maintenance or disabled units
         if (unit.getStatus() == UnitStatus.OCCUPIED || unit.getStatus() == UnitStatus.MAINTENANCE || unit.getStatus() == UnitStatus.DISABLED) {
@@ -93,7 +96,8 @@ public class LeaseServiceImpl implements LeaseService {
         lease.setOrganization(organization);
         lease.setUnit(unit);
         lease.setTenant(tenant);
-        lease.setOwner(owner);
+        lease.setLandlord(landlord);
+        lease.setCreatedBy(createdBy);
         lease.setAgreementTemplate(template);
         lease.setIsEsignCompleted(false);
         if (request.getStatus() != null) {

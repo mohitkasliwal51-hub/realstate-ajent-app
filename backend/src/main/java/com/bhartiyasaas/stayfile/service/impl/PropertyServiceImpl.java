@@ -6,16 +6,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bhartiyasaas.stayfile.dto.request.PropertyCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.PropertyResponse;
+import com.bhartiyasaas.stayfile.entity.Landlord;
 import com.bhartiyasaas.stayfile.entity.Organization;
-import com.bhartiyasaas.stayfile.entity.Profile;
 import com.bhartiyasaas.stayfile.entity.Property;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.PropertyMapper;
+import com.bhartiyasaas.stayfile.repository.LandlordRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
-import com.bhartiyasaas.stayfile.repository.ProfileRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
-import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyService;
 
 import java.util.List;
@@ -28,9 +27,8 @@ public class PropertyServiceImpl implements PropertyService {
 
     private final PropertyRepository propertyRepository;
     private final OrganizationRepository organizationRepository;
-    private final ProfileRepository profileRepository;
+    private final LandlordRepository landlordRepository;
     private final PropertyMapper propertyMapper;
-    private final TenantAccessService tenantAccessService;
 
     @Override
     @Transactional
@@ -39,16 +37,15 @@ public class PropertyServiceImpl implements PropertyService {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
-        Profile owner = profileRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + request.getOwnerId()));
-
-        if (owner.getOrganization() != null && !owner.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Owner profile does not belong to the specified Organization");
+        Landlord landlord = null;
+        if (request.getLandlordId() != null) {
+            landlord = landlordRepository.findByIdAndManagingOrganizationId(request.getLandlordId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
         }
 
         Property property = propertyMapper.toEntity(request);
         property.setOrganization(organization);
-        property.setOwner(owner);
+        property.setLandlord(landlord);
         property.setIsActive(true);
 
         Property savedProperty = propertyRepository.save(property);

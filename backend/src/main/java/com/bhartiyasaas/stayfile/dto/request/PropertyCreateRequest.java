@@ -1,8 +1,8 @@
 package com.bhartiyasaas.stayfile.dto.request;
 
+import com.bhartiyasaas.stayfile.entity.enums.PropertyType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,16 +11,13 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import com.bhartiyasaas.stayfile.entity.enums.PropertyType;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class PropertyCreateRequest {
 
-    @NotNull(message = "Owner ID is required")
-    private UUID ownerId;
+    private UUID landlordId;
 
     @NotBlank(message = "Property name is required")
     private String name;

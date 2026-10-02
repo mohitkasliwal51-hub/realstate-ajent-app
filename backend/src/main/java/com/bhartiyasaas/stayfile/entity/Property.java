@@ -30,8 +30,8 @@ public class Property {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private Profile owner;
+    @JoinColumn(name = "landlord_id")
+    private Landlord landlord;
 
     @Column(nullable = false)
     private String name;

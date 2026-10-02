@@ -9,7 +9,7 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface MaintenanceTicketMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
@@ -17,6 +17,7 @@ public interface MaintenanceTicketMapper {
     @Mapping(target = "unitNumber", source = "unit.unitNumber")
     @Mapping(target = "tenantId", source = "tenant.id")
     @Mapping(target = "tenantName", source = "tenant.fullName")
+    @Mapping(target = "assignedToId", ignore = true)
     MaintenanceTicketResponse toResponse(MaintenanceTicket ticket);
 
     List<MaintenanceTicketResponse> toResponseList(List<MaintenanceTicket> tickets);

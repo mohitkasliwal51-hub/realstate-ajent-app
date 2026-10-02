@@ -51,7 +51,7 @@ public class Profile {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
-    private UserRole role = UserRole.OWNER_ADMIN;
+    private UserRole role = UserRole.ADMIN;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

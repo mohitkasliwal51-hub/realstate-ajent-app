@@ -1,5 +1,8 @@
 package com.bhartiyasaas.stayfile.dto.response;
 
+import com.bhartiyasaas.stayfile.entity.enums.BrokerageFeeType;
+import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.entity.enums.MaintenanceFeeType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,8 +13,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,11 +22,11 @@ public class LeaseResponse {
     private UUID id;
     private UUID organizationId;
     private UUID unitId;
-    private String unitNumber;
     private UUID tenantId;
-    private String tenantName;
-    private UUID ownerId;
-    private String ownerName;
+    private UUID landlordId;
+    private String landlordName;
+    private UUID createdById;
+    private UUID agreementTemplateId;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal monthlyRent;
@@ -33,6 +34,13 @@ public class LeaseResponse {
     private Integer rentDueDay;
     private Integer noticePeriodDays;
     private Integer lockInPeriodMonths;
+
+    private BrokerageFeeType brokerageFeeType;
+    private BigDecimal brokerageAmount;
+    private MaintenanceFeeType maintenanceFeeType;
+    private BigDecimal maintenanceFeeAmount;
+    private BigDecimal agreementFeeAmount;
+
     private String customClauses;
     private String termsAndConditions;
     private LeaseStatus status;

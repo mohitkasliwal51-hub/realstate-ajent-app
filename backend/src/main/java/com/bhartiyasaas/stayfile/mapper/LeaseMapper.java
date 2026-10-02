@@ -9,17 +9,16 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface LeaseMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
     @Mapping(target = "unitId", source = "unit.id")
-    @Mapping(target = "unitNumber", source = "unit.unitNumber")
     @Mapping(target = "tenantId", source = "tenant.id")
-    @Mapping(target = "tenantName", source = "tenant.fullName")
-    @Mapping(target = "ownerId", source = "owner.id")
-    @Mapping(target = "ownerName", source = "owner.fullName")
-    @Mapping(target = "eStampNumber", source = "EStampNumber")
+    @Mapping(target = "landlordId", source = "landlord.id")
+    @Mapping(target = "landlordName", source = "landlord.legalName")
+    @Mapping(target = "createdById", source = "createdBy.id")
+    @Mapping(target = "agreementTemplateId", source = "agreementTemplate.id")
     LeaseResponse toResponse(Lease lease);
 
     List<LeaseResponse> toResponseList(List<Lease> leases);
@@ -28,7 +27,8 @@ public interface LeaseMapper {
     @Mapping(target = "organization", ignore = true)
     @Mapping(target = "unit", ignore = true)
     @Mapping(target = "tenant", ignore = true)
-    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "landlord", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "agreementTemplate", ignore = true)
     @Mapping(target = "agreementPdfUrl", ignore = true)
     @Mapping(target = "isEsignCompleted", ignore = true)

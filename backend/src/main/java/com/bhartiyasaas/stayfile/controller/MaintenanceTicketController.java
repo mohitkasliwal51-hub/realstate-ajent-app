@@ -25,7 +25,7 @@ public class MaintenanceTicketController {
 
     private final MaintenanceTicketService ticketService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @PostMapping
     public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> createTicket(
             @Valid @RequestBody MaintenanceTicketCreateRequest request,
@@ -35,7 +35,7 @@ public class MaintenanceTicketController {
                 .body(ApiResponse.success(response, "Maintenance ticket created successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<MaintenanceTicketResponse>>> getTicketsByOrganization(
             @AuthenticationPrincipal SecurityUser currentUser) {
@@ -43,7 +43,7 @@ public class MaintenanceTicketController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT', 'TENANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/tenant")
     public ResponseEntity<ApiResponse<List<MaintenanceTicketResponse>>> getTicketsByTenant(
             @RequestParam UUID tenantId,
@@ -52,7 +52,7 @@ public class MaintenanceTicketController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> updateTicketStatus(
             @PathVariable UUID id,

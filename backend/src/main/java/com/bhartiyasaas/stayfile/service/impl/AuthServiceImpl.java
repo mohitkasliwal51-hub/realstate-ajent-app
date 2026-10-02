@@ -74,7 +74,7 @@ public class AuthServiceImpl implements AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
-                .role(UserRole.OWNER_ADMIN)
+                .role(UserRole.ADMIN)
                 .isActive(true)
                 .build();
         profile = profileRepository.save(profile);

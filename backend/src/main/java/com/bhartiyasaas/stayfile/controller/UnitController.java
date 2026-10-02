@@ -26,7 +26,7 @@ public class UnitController {
 
     private final UnitService unitService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping("/units")
     public ResponseEntity<ApiResponse<UnitResponse>> createUnit(
             @Valid @RequestBody UnitCreateRequest request,
@@ -36,7 +36,7 @@ public class UnitController {
                 .body(ApiResponse.success(response, "Unit created successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/properties/{propertyId}/units")
     public ResponseEntity<ApiResponse<List<UnitResponse>>> getUnitsByProperty(
             @PathVariable UUID propertyId,
@@ -46,7 +46,7 @@ public class UnitController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/units/{id}")
     public ResponseEntity<ApiResponse<UnitResponse>> getUnitById(
             @PathVariable UUID id,
@@ -55,7 +55,7 @@ public class UnitController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PatchMapping("/units/{id}/status")
     public ResponseEntity<ApiResponse<UnitResponse>> updateUnitStatus(
             @PathVariable UUID id,
@@ -65,7 +65,7 @@ public class UnitController {
         return ResponseEntity.ok(ApiResponse.success(response, "Unit status updated successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PutMapping("/units/{id}")
     public ResponseEntity<ApiResponse<UnitResponse>> updateUnit(
             @PathVariable UUID id,
@@ -75,7 +75,7 @@ public class UnitController {
         return ResponseEntity.ok(ApiResponse.success(response, "Unit updated successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @DeleteMapping("/units/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUnit(
             @PathVariable UUID id,

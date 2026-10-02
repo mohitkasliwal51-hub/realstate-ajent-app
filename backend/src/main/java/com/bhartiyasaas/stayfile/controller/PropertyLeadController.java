@@ -35,7 +35,7 @@ public class PropertyLeadController {
                 .body(ApiResponse.success(response, "Inquiry captured successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PropertyLeadResponse>>> getLeadsByOrganization(
             @AuthenticationPrincipal SecurityUser currentUser) {
@@ -43,7 +43,7 @@ public class PropertyLeadController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<PropertyLeadResponse>> updateLeadStatus(
             @PathVariable UUID id,

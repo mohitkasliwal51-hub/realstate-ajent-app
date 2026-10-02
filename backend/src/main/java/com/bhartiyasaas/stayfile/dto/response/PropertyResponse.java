@@ -1,5 +1,6 @@
 package com.bhartiyasaas.stayfile.dto.response;
 
+import com.bhartiyasaas.stayfile.entity.enums.PropertyType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,8 +10,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import com.bhartiyasaas.stayfile.entity.enums.PropertyType;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,7 +18,8 @@ public class PropertyResponse {
 
     private UUID id;
     private UUID organizationId;
-    private UUID ownerId;
+    private UUID landlordId;
+    private String landlordName;
     private String name;
     private PropertyType type;
     private String address;

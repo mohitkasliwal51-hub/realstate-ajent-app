@@ -473,7 +473,9 @@ CREATE TABLE IF NOT EXISTS public.meter_readings (
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT ck_meter_readings_value CHECK (current_reading >= previous_reading)
+    CONSTRAINT ck_meter_readings_value CHECK (current_reading >= previous_reading),
+    CONSTRAINT ck_meter_readings_type CHECK (meter_type IN ('ELECTRICITY', 'WATER', 'GAS')),
+    CONSTRAINT ck_meter_readings_rate CHECK (rate_per_unit >= 0)
 );
 
 -- -----------------------------------------------------------------------------
@@ -699,6 +701,95 @@ CREATE TABLE IF NOT EXISTS public.integration_logs (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Enforce organization consistency across dependent records.
+ALTER TABLE public.units
+    ADD CONSTRAINT fk_units_parent_organization
+    FOREIGN KEY (parent_unit_id, organization_id)
+    REFERENCES public.units (id, organization_id);
+
+ALTER TABLE public.meter_readings
+    ADD CONSTRAINT fk_meter_readings_unit_organization
+    FOREIGN KEY (unit_id, organization_id)
+    REFERENCES public.units (id, organization_id);
+
+ALTER TABLE public.invoices
+    ADD CONSTRAINT fk_invoices_lease_organization
+    FOREIGN KEY (lease_id, organization_id)
+    REFERENCES public.leases (id, organization_id),
+    ADD CONSTRAINT fk_invoices_tenant_organization
+    FOREIGN KEY (tenant_id, organization_id)
+    REFERENCES public.tenants (id, organization_id),
+    ADD CONSTRAINT fk_invoices_unit_organization
+    FOREIGN KEY (unit_id, organization_id)
+    REFERENCES public.units (id, organization_id);
+
+ALTER TABLE public.invoice_line_items
+    ADD CONSTRAINT fk_invoice_line_items_invoice_organization
+    FOREIGN KEY (invoice_id, organization_id)
+    REFERENCES public.invoices (id, organization_id);
+
+ALTER TABLE public.receipts
+    ADD CONSTRAINT fk_receipts_invoice_organization
+    FOREIGN KEY (invoice_id, organization_id)
+    REFERENCES public.invoices (id, organization_id),
+    ADD CONSTRAINT fk_receipts_lease_organization
+    FOREIGN KEY (lease_id, organization_id)
+    REFERENCES public.leases (id, organization_id),
+    ADD CONSTRAINT fk_receipts_tenant_organization
+    FOREIGN KEY (tenant_id, organization_id)
+    REFERENCES public.tenants (id, organization_id);
+
+ALTER TABLE public.landlord_payouts
+    ADD CONSTRAINT fk_payouts_landlord_organization
+    FOREIGN KEY (landlord_id, organization_id)
+    REFERENCES public.landlords (id, managing_organization_id),
+    ADD CONSTRAINT fk_payouts_property_organization
+    FOREIGN KEY (property_id, organization_id)
+    REFERENCES public.properties (id, organization_id);
+
+ALTER TABLE public.police_verifications
+    ADD CONSTRAINT fk_police_verifications_lease_organization
+    FOREIGN KEY (lease_id, organization_id)
+    REFERENCES public.leases (id, organization_id),
+    ADD CONSTRAINT fk_police_verifications_tenant_organization
+    FOREIGN KEY (tenant_id, organization_id)
+    REFERENCES public.tenants (id, organization_id),
+    ADD CONSTRAINT fk_police_verifications_landlord_organization
+    FOREIGN KEY (landlord_id, organization_id)
+    REFERENCES public.landlords (id, managing_organization_id);
+
+ALTER TABLE public.esign_transactions
+    ADD CONSTRAINT fk_esign_transactions_lease_organization
+    FOREIGN KEY (lease_id, organization_id)
+    REFERENCES public.leases (id, organization_id);
+
+ALTER TABLE public.whatsapp_logs
+    ADD CONSTRAINT fk_whatsapp_logs_tenant_organization
+    FOREIGN KEY (tenant_id, organization_id)
+    REFERENCES public.tenants (id, organization_id);
+
+ALTER TABLE public.property_leads
+    ADD CONSTRAINT fk_property_leads_property_organization
+    FOREIGN KEY (property_id, organization_id)
+    REFERENCES public.properties (id, organization_id),
+    ADD CONSTRAINT fk_property_leads_unit_organization
+    FOREIGN KEY (unit_id, organization_id)
+    REFERENCES public.units (id, organization_id),
+    ADD CONSTRAINT fk_property_leads_assignee_organization
+    FOREIGN KEY (assigned_to, organization_id)
+    REFERENCES public.profiles (id, organization_id);
+
+ALTER TABLE public.maintenance_tickets
+    ADD CONSTRAINT fk_maintenance_tickets_unit_organization
+    FOREIGN KEY (unit_id, organization_id)
+    REFERENCES public.units (id, organization_id),
+    ADD CONSTRAINT fk_maintenance_tickets_tenant_organization
+    FOREIGN KEY (tenant_id, organization_id)
+    REFERENCES public.tenants (id, organization_id),
+    ADD CONSTRAINT fk_maintenance_tickets_assignee_organization
+    FOREIGN KEY (assigned_to, organization_id)
+    REFERENCES public.profiles (id, organization_id);
+
 -- -----------------------------------------------------------------------------
 -- 7. AUTOMATED TRIGGERS FOR LEASE-UNIT STATUS & INVOICE PAYMENTS
 -- -----------------------------------------------------------------------------
@@ -765,41 +856,82 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_sync_unit_lease_status
-AFTER INSERT OR UPDATE OF status ON public.leases
+AFTER INSERT OR UPDATE OF status, unit_id ON public.leases
 FOR EACH ROW EXECUTE FUNCTION sync_unit_lease_status();
 
--- AUTOMATED TRIGGER 2: Syncs invoice paid_amount, balance_due & status on receipt insert/update
+-- AUTOMATED TRIGGER 2: Syncs invoice paid_amount, balance_due & status on receipt insert/update/delete
 CREATE OR REPLACE FUNCTION sync_invoice_payment_status()
 RETURNS TRIGGER AS $$
 DECLARE
     total_payments DECIMAL(10, 2);
-    target_invoice RECORD;
+    target_invoice_id UUID;
+    target_total DECIMAL(10, 2);
+    target_due_date DATE;
+    target_status invoice_status;
 BEGIN
-    IF NEW.invoice_id IS NOT NULL THEN
+    IF TG_OP = 'DELETE' THEN
+        target_invoice_id := OLD.invoice_id;
+    ELSE
+        target_invoice_id := NEW.invoice_id;
+    END IF;
+
+    IF target_invoice_id IS NOT NULL THEN
         SELECT COALESCE(SUM(amount), 0.00) INTO total_payments
         FROM public.receipts
-        WHERE invoice_id = NEW.invoice_id;
+        WHERE invoice_id = target_invoice_id;
 
-        SELECT total_amount INTO target_invoice
+        SELECT total_amount, due_date, status
+        INTO target_total, target_due_date, target_status
         FROM public.invoices
-        WHERE id = NEW.invoice_id;
+        WHERE id = target_invoice_id;
 
-        UPDATE public.invoices
-        SET paid_amount = total_payments,
-            status = CASE 
-                        WHEN total_payments >= target_invoice.total_amount THEN 'PAID'::invoice_status
-                        WHEN total_payments > 0 THEN 'PARTIAL'::invoice_status
-                        ELSE 'UNPAID'::invoice_status
-                     END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.invoice_id;
+        IF target_total IS NOT NULL THEN
+            UPDATE public.invoices
+            SET paid_amount = total_payments,
+                status = CASE
+                            WHEN target_status IN ('DRAFT', 'CANCELLED') THEN target_status
+                            WHEN total_payments >= target_total THEN 'PAID'::invoice_status
+                            WHEN target_due_date < CURRENT_DATE THEN 'OVERDUE'::invoice_status
+                            WHEN total_payments > 0 THEN 'PARTIAL'::invoice_status
+                            ELSE 'UNPAID'::invoice_status
+                         END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = target_invoice_id;
+        END IF;
     END IF;
-    RETURN NEW;
+
+    -- Handle re-assignment if invoice_id changed on UPDATE
+    IF TG_OP = 'UPDATE' AND OLD.invoice_id IS NOT NULL AND OLD.invoice_id <> NEW.invoice_id THEN
+        SELECT COALESCE(SUM(amount), 0.00) INTO total_payments
+        FROM public.receipts
+        WHERE invoice_id = OLD.invoice_id;
+
+        SELECT total_amount, due_date, status
+        INTO target_total, target_due_date, target_status
+        FROM public.invoices
+        WHERE id = OLD.invoice_id;
+
+        IF target_total IS NOT NULL THEN
+            UPDATE public.invoices
+            SET paid_amount = total_payments,
+                status = CASE
+                            WHEN target_status IN ('DRAFT', 'CANCELLED') THEN target_status
+                            WHEN total_payments >= target_total THEN 'PAID'::invoice_status
+                            WHEN target_due_date < CURRENT_DATE THEN 'OVERDUE'::invoice_status
+                            WHEN total_payments > 0 THEN 'PARTIAL'::invoice_status
+                            ELSE 'UNPAID'::invoice_status
+                         END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = OLD.invoice_id;
+        END IF;
+    END IF;
+
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_sync_invoice_payment_status
-AFTER INSERT OR UPDATE ON public.receipts
+AFTER INSERT OR UPDATE OR DELETE ON public.receipts
 FOR EACH ROW EXECUTE FUNCTION sync_invoice_payment_status();
 
 -- -----------------------------------------------------------------------------
@@ -815,6 +947,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_one_active_lease_per_unit
     ON public.leases(unit_id)
     WHERE status = 'ACTIVE';
 
+-- Prevent duplicate MONTHLY_RENT invoices for the same lease and period
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_monthly_rent_invoice
+    ON public.invoices (lease_id, billing_period_start)
+    WHERE invoice_type = 'MONTHLY_RENT';
+
 ALTER TABLE public.tenants ADD CONSTRAINT uq_org_phone UNIQUE (organization_id, phone);
 
 -- High-Performance Composite Multi-Tenant Performance Indexes
@@ -826,6 +963,9 @@ CREATE INDEX IF NOT EXISTS idx_units_org_status ON public.units(organization_id,
 CREATE INDEX IF NOT EXISTS idx_meter_readings_unit ON public.meter_readings(unit_id, reading_date);
 CREATE INDEX IF NOT EXISTS idx_invoices_org_status ON public.invoices(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_invoices_tenant_status ON public.invoices(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_invoices_overdue_lookup
+    ON public.invoices(organization_id, due_date)
+    WHERE status IN ('UNPAID', 'PARTIAL');
 CREATE INDEX IF NOT EXISTS idx_receipts_org_tenant ON public.receipts(organization_id, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_receipts_invoice ON public.receipts(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_payouts_landlord ON public.landlord_payouts(landlord_id, payout_status);
@@ -836,6 +976,14 @@ CREATE INDEX IF NOT EXISTS idx_integration_logs_provider ON public.integration_l
 -- -----------------------------------------------------------------------------
 -- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.current_organization_id()
+RETURNS UUID
+LANGUAGE SQL
+STABLE
+AS $$
+    SELECT NULLIF(current_setting('app.current_organization_id', true), '')::UUID
+$$;
 
 ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -853,8 +1001,11 @@ ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.landlord_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bbps_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.police_verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.esign_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maintenance_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integration_logs ENABLE ROW LEVEL SECURITY;
 
 -- Public showcase RLS policies
 CREATE POLICY "Public can view active properties" ON public.properties
@@ -862,3 +1013,88 @@ CREATE POLICY "Public can view active properties" ON public.properties
 
 CREATE POLICY "Public can view available units" ON public.units
     FOR SELECT USING (status = 'AVAILABLE');
+
+-- Organization authenticated RLS policies (Defense-in-depth DB Multi-tenancy)
+CREATE POLICY "Org members can manage properties" ON public.properties
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage units" ON public.units
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage leases" ON public.leases
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage invoices" ON public.invoices
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage receipts" ON public.receipts
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage payouts" ON public.landlord_payouts
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage organizations" ON public.organizations
+    FOR ALL USING (id = public.current_organization_id())
+    WITH CHECK (id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage profiles" ON public.profiles
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage branding" ON public.branding_settings
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage landlords" ON public.landlords
+    FOR ALL USING (managing_organization_id = public.current_organization_id())
+    WITH CHECK (managing_organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage tenants" ON public.tenants
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage agreement templates" ON public.agreement_templates
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage meter readings" ON public.meter_readings
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage invoice line items" ON public.invoice_line_items
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage BBPS transactions" ON public.bbps_transactions
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage police verifications" ON public.police_verifications
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage e-sign transactions" ON public.esign_transactions
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage WhatsApp logs" ON public.whatsapp_logs
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage property leads" ON public.property_leads
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage maintenance tickets" ON public.maintenance_tickets
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());
+
+CREATE POLICY "Org members can manage integration logs" ON public.integration_logs
+    FOR ALL USING (organization_id = public.current_organization_id())
+    WITH CHECK (organization_id = public.current_organization_id());

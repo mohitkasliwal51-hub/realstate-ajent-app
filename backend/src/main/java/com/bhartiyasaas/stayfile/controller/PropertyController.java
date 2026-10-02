@@ -25,7 +25,7 @@ public class PropertyController {
 
     private final PropertyService propertyService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping
     public ResponseEntity<ApiResponse<PropertyResponse>> createProperty(
             @Valid @RequestBody PropertyCreateRequest request,
@@ -35,7 +35,7 @@ public class PropertyController {
                 .body(ApiResponse.success(response, "Property created successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PropertyResponse>> getPropertyById(
             @PathVariable UUID id,
@@ -44,7 +44,7 @@ public class PropertyController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN', 'PROPERTY_MANAGER', 'STAFF_ASSISTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PropertyResponse>>> getPropertiesByOrganization(
             @AuthenticationPrincipal SecurityUser currentUser) {

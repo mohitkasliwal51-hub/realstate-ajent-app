@@ -35,6 +35,10 @@ public class Receipt {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invoice_id")
+    private Invoice invoice;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lease_id", nullable = false)
     private Lease lease;
 

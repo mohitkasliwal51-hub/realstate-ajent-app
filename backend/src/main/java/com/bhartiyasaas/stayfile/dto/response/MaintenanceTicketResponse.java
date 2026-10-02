@@ -20,6 +20,7 @@ public class MaintenanceTicketResponse {
     private String unitNumber;
     private UUID tenantId;
     private String tenantName;
+    private UUID assignedToId;
     private String title;
     private String description;
     private String category;

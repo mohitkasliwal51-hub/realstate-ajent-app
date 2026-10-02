@@ -1,5 +1,8 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
+import com.bhartiyasaas.stayfile.entity.Invoice;
+import com.bhartiyasaas.stayfile.entity.InvoiceLineItem;
+import com.bhartiyasaas.stayfile.entity.LandlordPayout;
 import com.bhartiyasaas.stayfile.entity.Lease;
 import com.bhartiyasaas.stayfile.entity.Receipt;
 import com.bhartiyasaas.stayfile.entity.BrandingSettings;
@@ -50,14 +53,17 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             ref.setSpacingAfter(20);
             document.add(ref);
 
-                Paragraph signing = new Paragraph(
-                    "E-STAMP / E-SIGN RECORD\n" +
-                    "E-Stamp Number: " + valueOrPending(lease.getEStampNumber()) + "\n" +
-                    "E-Sign Transaction: " + valueOrPending(lease.getEsignTransactionId()),
-                    FOOTER_FONT);
-                signing.setAlignment(Element.ALIGN_CENTER);
-                signing.setSpacingAfter(16);
-                document.add(signing);
+            Paragraph signing = new Paragraph(
+                "E-STAMP / E-SIGN RECORD\n" +
+                "E-Stamp Number: " + valueOrPending(lease.getEStampNumber()) + "\n" +
+                "E-Sign Transaction: " + valueOrPending(lease.getEsignTransactionId()),
+                FOOTER_FONT);
+            signing.setAlignment(Element.ALIGN_CENTER);
+            signing.setSpacingAfter(16);
+            document.add(signing);
+
+            String landlordName = lease.getLandlord() != null ? lease.getLandlord().getLegalName() 
+                    : (lease.getCreatedBy() != null ? lease.getCreatedBy().getFullName() : "Landlord");
 
             // Body Text
             String bodyText = String.format(
@@ -75,7 +81,7 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
                     "4. Notice Period: %d days\n" +
                     "5. Lock-in Period: %d months\n",
                     lease.getStartDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    lease.getOwner().getFullName(),
+                    landlordName,
                     lease.getTenant().getFullName(),
                     lease.getUnit().getProperty().getName(),
                     lease.getUnit().getProperty().getType(),
@@ -119,7 +125,7 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             PdfPTable table = new PdfPTable(2);
             table.setWidthPercentage(100);
 
-            PdfPCell cell1 = new PdfPCell(new Paragraph("Landlord Signature:\n\n________________________\n" + lease.getOwner().getFullName(), BOLD_FONT));
+            PdfPCell cell1 = new PdfPCell(new Paragraph("Landlord Signature:\n\n________________________\n" + landlordName, BOLD_FONT));
             cell1.setBorder(Rectangle.NO_BORDER);
             cell1.setPadding(10);
 
@@ -159,9 +165,9 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             title.setSpacingAfter(10);
             document.add(title);
 
-                BrandingSettings branding = brandingSettingsRepository
-                    .findByOrganizationId(receipt.getOrganization().getId()).orElse(null);
-                if (branding != null) {
+            BrandingSettings branding = brandingSettingsRepository
+                .findByOrganizationId(receipt.getOrganization().getId()).orElse(null);
+            if (branding != null) {
                 document.add(new Paragraph(
                     valueOrPending(branding.getLegalBusinessName()) +
                         " | GSTIN: " + valueOrPending(branding.getOwnerGstin()),
@@ -169,7 +175,7 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
                 if (branding.getAgencyLogoUrl() != null && !branding.getAgencyLogoUrl().isBlank()) {
                     document.add(new Paragraph("Logo: " + branding.getAgencyLogoUrl(), FOOTER_FONT));
                 }
-                }
+            }
 
             Paragraph receiptNo = new Paragraph("Receipt No: " + receipt.getReceiptNumber(), SUBTITLE_FONT);
             receiptNo.setAlignment(Element.ALIGN_CENTER);
@@ -197,6 +203,111 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             document.close();
         } catch (Exception e) {
             throw new RuntimeException("Error generating Payment Receipt PDF: " + e.getMessage(), e);
+        }
+
+        return out.toByteArray();
+    }
+
+    @Override
+    public byte[] generateInvoicePdf(Invoice invoice) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+
+        try {
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            Paragraph title = new Paragraph("ITEMIZED TAX INVOICE", TITLE_FONT);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(10);
+            document.add(title);
+
+            Paragraph invNumber = new Paragraph("Invoice #: " + invoice.getInvoiceNumber() + " | Status: " + invoice.getStatus(), SUBTITLE_FONT);
+            invNumber.setAlignment(Element.ALIGN_CENTER);
+            invNumber.setSpacingAfter(15);
+            document.add(invNumber);
+
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            addTableRow(infoTable, "Tenant:", invoice.getTenant() != null ? invoice.getTenant().getFullName() : "N/A");
+            addTableRow(infoTable, "Billing Start:", invoice.getBillingPeriodStart() != null ? invoice.getBillingPeriodStart().format(DateTimeFormatter.ISO_LOCAL_DATE) : "N/A");
+            addTableRow(infoTable, "Billing End:", invoice.getBillingPeriodEnd() != null ? invoice.getBillingPeriodEnd().format(DateTimeFormatter.ISO_LOCAL_DATE) : "N/A");
+            addTableRow(infoTable, "Due Date:", invoice.getDueDate() != null ? invoice.getDueDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : "N/A");
+            document.add(infoTable);
+            document.add(new Paragraph("\n"));
+
+            PdfPTable itemsTable = new PdfPTable(3);
+            itemsTable.setWidthPercentage(100);
+            itemsTable.addCell(new PdfPCell(new Paragraph("Charge Type", BOLD_FONT)));
+            itemsTable.addCell(new PdfPCell(new Paragraph("Description", BOLD_FONT)));
+            itemsTable.addCell(new PdfPCell(new Paragraph("Amount", BOLD_FONT)));
+
+            if (invoice.getLineItems() != null) {
+                for (InvoiceLineItem item : invoice.getLineItems()) {
+                    itemsTable.addCell(new PdfPCell(new Paragraph(item.getChargeType().name(), NORMAL_FONT)));
+                    itemsTable.addCell(new PdfPCell(new Paragraph(item.getDescription(), NORMAL_FONT)));
+                    itemsTable.addCell(new PdfPCell(new Paragraph("Rs. " + item.getAmount(), NORMAL_FONT)));
+                }
+            }
+            document.add(itemsTable);
+
+            Paragraph totalPara = new Paragraph("\nTotal Amount: Rs. " + invoice.getTotalAmount() + 
+                    " | Paid: Rs. " + invoice.getPaidAmount() + 
+                    " | Balance Due: Rs. " + invoice.getBalanceDue(), BOLD_FONT);
+            totalPara.setAlignment(Element.ALIGN_RIGHT);
+            totalPara.setSpacingAfter(20);
+            document.add(totalPara);
+
+            Paragraph footer = new Paragraph("Generated by StayFile Platform Engine • Statutory Tax Compliant", FOOTER_FONT);
+            footer.setAlignment(Element.ALIGN_CENTER);
+            document.add(footer);
+
+            document.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating Invoice PDF: " + e.getMessage(), e);
+        }
+
+        return out.toByteArray();
+    }
+
+    @Override
+    public byte[] generateLandlordPayoutPdf(LandlordPayout payout) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+
+        try {
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            Paragraph title = new Paragraph("LANDLORD PAYOUT STATEMENT", TITLE_FONT);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(10);
+            document.add(title);
+
+            Paragraph payoutNo = new Paragraph("Payout Ref #: " + payout.getPayoutNumber() + " | Status: " + payout.getPayoutStatus(), SUBTITLE_FONT);
+            payoutNo.setAlignment(Element.ALIGN_CENTER);
+            payoutNo.setSpacingAfter(15);
+            document.add(payoutNo);
+
+            PdfPTable table = new PdfPTable(2);
+            table.setWidthPercentage(100);
+            addTableRow(table, "Landlord / Owner:", payout.getLandlord() != null ? payout.getLandlord().getLegalName() : "N/A");
+            addTableRow(table, "Total Rent Collected:", "Rs. " + payout.getTotalCollected());
+            addTableRow(table, "Commission Amount:", "Rs. " + payout.getCommissionAmount());
+            addTableRow(table, "Deductions Amount:", "Rs. " + payout.getDeductionsAmount());
+            addTableRow(table, "Net Payout Amount:", "Rs. " + payout.getNetPayoutAmount());
+            addTableRow(table, "Payout Date:", payout.getPayoutDate() != null ? payout.getPayoutDate().format(DateTimeFormatter.ISO_LOCAL_DATE) : "PENDING");
+            addTableRow(table, "UTR / Transaction Ref:", payout.getUtrNumber() != null ? payout.getUtrNumber() : "N/A");
+
+            document.add(table);
+
+            Paragraph footer = new Paragraph("\nVerified Statement • StayFile Brokerage & Property Management Engine", FOOTER_FONT);
+            footer.setAlignment(Element.ALIGN_CENTER);
+            document.add(footer);
+
+            document.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating Landlord Payout PDF: " + e.getMessage(), e);
         }
 
         return out.toByteArray();

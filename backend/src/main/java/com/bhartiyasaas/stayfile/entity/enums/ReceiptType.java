@@ -5,6 +5,8 @@ public enum ReceiptType {
     RENT_PAYMENT,
     UTILITY_BILL,
     MAINTENANCE,
+    BROKERAGE_FEE,
+    AGREEMENT_FEE,
     TOKEN_BOOKING,
     OTHER
 }

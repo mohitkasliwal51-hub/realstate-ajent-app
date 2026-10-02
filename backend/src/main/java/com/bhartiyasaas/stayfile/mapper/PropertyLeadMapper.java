@@ -9,13 +9,14 @@ import org.mapstruct.ReportingPolicy;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PropertyLeadMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
     @Mapping(target = "propertyId", source = "property.id")
     @Mapping(target = "propertyName", source = "property.name")
     @Mapping(target = "unitId", source = "unit.id")
+    @Mapping(target = "assignedToId", ignore = true)
     PropertyLeadResponse toResponse(PropertyLead lead);
 
     List<PropertyLeadResponse> toResponseList(List<PropertyLead> leads);

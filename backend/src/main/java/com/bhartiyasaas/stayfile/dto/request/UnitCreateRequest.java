@@ -21,6 +21,8 @@ public class UnitCreateRequest {
     @NotNull(message = "Property ID is required")
     private UUID propertyId;
 
+    private UUID parentUnitId;
+
     @NotBlank(message = "Unit number is required")
     private String unitNumber;
 

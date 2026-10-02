@@ -2,9 +2,9 @@ package com.bhartiyasaas.stayfile.entity.enums;
 
 public enum UserRole {
     SUPER_ADMIN,
-    OWNER_ADMIN,
+    ADMIN,
     PROPERTY_MANAGER,
-    STAFF_ASSISTANT,
+    AGENT,
     TENANT,
     PUBLIC_GUEST
 }
