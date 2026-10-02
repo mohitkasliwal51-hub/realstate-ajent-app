@@ -1,200 +1,317 @@
-# 🏡 StayFile - Database Data Model Documentation (LOCKED & FINALIZED v4)
+# StayFile Database Data Model
 
-This document provides a comprehensive technical reference for the **StayFile** PostgreSQL multi-tenant database schema. It details all 19 tables, custom enums, data types, integrity constraints, automated DB triggers, composite indexes, and realistic sample data for both **Direct Property Owners** and **Real Estate Brokerage Agencies**.
+This document describes the schema implemented by
+[`database/init-scripts/01-init.sql`](init-scripts/01-init.sql). The SQL script is
+the source of truth. This model contains 21 tables and 22 PostgreSQL enum types.
 
----
+## Database Conventions
 
-## 📑 Table of Contents
+- IDs use `UUID` with `gen_random_uuid()` defaults.
+- Timestamps use `TIMESTAMPTZ` and default to `NOW()`.
+- Monetary values use `DECIMAL(10,2)`.
+- Organization-owned records contain `organization_id`, except landlords, which
+  use `managing_organization_id`.
+- Important parent-child relationships use composite foreign keys containing the
+  organization ID to prevent cross-organization references.
+- The SQL enables RLS. Application connections must set
+  `app.current_organization_id` before querying organization-owned data.
+- The initialization script is intended for a fresh database. It is not a
+  versioned, rerunnable migration because enum, trigger, policy, and constraint
+  statements are not all guarded with existence checks.
 
-1. [Enums & Custom Data Types](#1-enums--custom-data-types)
-2. [1. organizations](#1-organizations)
-3. [2. profiles](#2-profiles)
-4. [3. branding_settings](#3-branding_settings)
-5. [4. landlords](#4-landlords)
-6. [5. properties](#5-properties)
-7. [6. units](#6-units)
-8. [7. tenants](#7-tenants)
-9. [8. agreement_templates](#8-agreement_templates)
-10. [9. leases](#9-leases)
-11. [10. meter_readings](#10-meter_readings)
-12. [11. invoices](#11-invoices)
-13. [12. invoice_line_items](#12-invoice_line_items)
-14. [13. receipts](#13-receipts)
-15. [14. landlord_payouts](#14-landlord_payouts)
-16. [15. bbps_transactions](#15-bbps_transactions)
-17. [16. police_verifications](#16-police_verifications)
-18. [17. esign_transactions](#17-esign_transactions)
-19. [18. whatsapp_logs](#18-whatsapp_logs)
-20. [19. property_leads](#19-property_leads)
-21. [20. maintenance_tickets](#20-maintenance_tickets)
-22. [21. integration_logs](#21-integration_logs)
-23. [Automated DB Triggers & Indexes](#automated-db-triggers--indexes)
+## Enum Types
 
----
+| Type | Values |
+| --- | --- |
+| `user_role` | `SUPER_ADMIN`, `ADMIN`, `PROPERTY_MANAGER`, `AGENT`, `TENANT`, `PUBLIC_GUEST` |
+| `organization_type` | `OWNER`, `BROKERAGE`, `HYBRID` |
+| `owner_type` | `INDIVIDUAL`, `COMPANY`, `TRUST`, `PARTNERSHIP` |
+| `property_type` | `PG`, `FLAT`, `COMMERCIAL`, `HOSTEL` |
+| `sharing_type` | `SINGLE`, `DOUBLE`, `TRIPLE`, `FOUR_SHARING`, `FULL_FLAT`, `COMMERCIAL_SPACE` |
+| `unit_status` | `AVAILABLE`, `OCCUPIED`, `RESERVED`, `MAINTENANCE`, `DISABLED` |
+| `lease_status` | `DRAFT`, `PENDING_ESIGN`, `ACTIVE`, `EXPIRED`, `TERMINATED`, `CANCELLED` |
+| `brokerage_fee_type` | `NONE`, `ONE_TIME`, `RECURRING_PERCENTAGE`, `RECURRING_FIXED` |
+| `maintenance_fee_type` | `NONE`, `MONTHLY`, `ANNUAL_ONE_TIME` |
+| `invoice_type` | `MOVE_IN`, `MONTHLY_RENT`, `UTILITY_ONLY`, `MAINTENANCE_ONLY`, `FINAL_SETTLEMENT` |
+| `invoice_status` | `DRAFT`, `UNPAID`, `PARTIAL`, `PAID`, `OVERDUE`, `CANCELLED` |
+| `charge_type` | `RENT`, `SECURITY_DEPOSIT`, `ONE_TIME_BROKERAGE`, `RECURRING_COMMISSION`, `MAINTENANCE_FEE`, `AGREEMENT_FEE`, `ELECTRICITY_BILL`, `WATER_BILL`, `LATE_FEE`, `TOKEN_BOOKING`, `OTHER` |
+| `receipt_type` | `SECURITY_DEPOSIT`, `RENT_PAYMENT`, `UTILITY_BILL`, `MAINTENANCE`, `BROKERAGE_FEE`, `AGREEMENT_FEE`, `TOKEN_BOOKING`, `OTHER` |
+| `payment_mode` | `UPI`, `NET_BANKING`, `CREDIT_CARD`, `DEBIT_CARD`, `CASH`, `CHEQUE` |
+| `payout_status` | `PENDING`, `PROCESSING`, `SETTLED`, `FAILED` |
+| `verification_status` | `NOT_STARTED`, `PENDING`, `VERIFIED`, `REJECTED` |
+| `whatsapp_direction` | `INBOUND`, `OUTBOUND` |
+| `whatsapp_msg_type` | `TEXT`, `TEMPLATE`, `DOCUMENT`, `IMAGE`, `INTERACTIVE`, `LOCATION` |
+| `whatsapp_status` | `SENT`, `DELIVERED`, `READ`, `FAILED` |
+| `bbps_status` | `PENDING`, `SUCCESS`, `FAILED` |
+| `lead_source` | `WHATSAPP`, `WEBSITE`, `NINETYNINE_ACRES`, `NOBROKER`, `MAGICBRICKS`, `DIRECT` |
+| `lead_status` | `NEW`, `CONTACTED`, `VISITED`, `CONVERTED`, `LOST` |
 
-## 1. Enums & Custom Data Types
+## Core Organization Tables
 
-| Enum Name | Allowed Values | Description |
-| :--- | :--- | :--- |
-| `user_role` | `SUPER_ADMIN`, `ADMIN`, `PROPERTY_MANAGER`, `AGENT`, `TENANT`, `PUBLIC_GUEST` | Permission levels in system RBAC |
-| `organization_type` | `OWNER`, `BROKERAGE`, `HYBRID` | Account type (Direct Landlord vs Broker Agency) |
-| `property_type` | `PG`, `FLAT`, `COMMERCIAL`, `HOSTEL` | Property classification |
-| `sharing_type` | `SINGLE`, `DOUBLE`, `TRIPLE`, `FOUR_SHARING`, `FULL_FLAT`, `COMMERCIAL_SPACE` | Occupancy / sharing configuration |
-| `unit_status` | `AVAILABLE`, `OCCUPIED`, `RESERVED`, `MAINTENANCE`, `DISABLED` | Inventory availability state |
-| `lease_status` | `DRAFT`, `PENDING_ESIGN`, `ACTIVE`, `EXPIRED`, `TERMINATED`, `CANCELLED` | Agreement lifecycle state |
-| `brokerage_fee_type` | `NONE`, `ONE_TIME`, `RECURRING_PERCENTAGE`, `RECURRING_FIXED` | Brokerage fee structure |
-| `maintenance_fee_type` | `NONE`, `MONTHLY`, `ANNUAL_ONE_TIME` | PG & property maintenance fee model |
-| `invoice_type` | `MOVE_IN`, `MONTHLY_RENT`, `UTILITY_ONLY`, `MAINTENANCE_ONLY`, `FINAL_SETTLEMENT` | Category of invoice statement |
-| `invoice_status` | `DRAFT`, `UNPAID`, `PARTIAL`, `PAID`, `OVERDUE`, `CANCELLED` | Invoice payment status |
-| `charge_type` | `RENT`, `SECURITY_DEPOSIT`, `ONE_TIME_BROKERAGE`, `RECURRING_COMMISSION`, `MAINTENANCE_FEE`, `AGREEMENT_FEE`, `ELECTRICITY_BILL`, `WATER_BILL`, `LATE_FEE`, `TOKEN_BOOKING`, `OTHER` | Line item charge classification |
-| `receipt_type` | `SECURITY_DEPOSIT`, `RENT_PAYMENT`, `UTILITY_BILL`, `MAINTENANCE`, `BROKERAGE_FEE`, `AGREEMENT_FEE`, `TOKEN_BOOKING`, `OTHER` | Financial payment receipt purpose |
-| `payment_mode` | `UPI`, `NET_BANKING`, `CREDIT_CARD`, `DEBIT_CARD`, `CASH`, `CHEQUE` | Payment instrument used |
-| `payout_status` | `PENDING`, `PROCESSING`, `SETTLED`, `FAILED` | State of landlord payout transfer |
+### `organizations`
 
----
+Columns: `id`, `name`, `slug`, `organization_type`, `is_active`, `metadata`,
+`created_at`, `updated_at`.
 
-## 1. `organizations`
-Stores top-level SaaS business accounts. Supports both Direct Landlords and Brokerage Agencies.
+`slug` is unique. `organization_type` defaults to `OWNER`.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Organization Identifier |
-| `name` | `TEXT` | `NOT NULL` | Operating Agency / Owner Business Name |
-| `slug` | `TEXT` | `UNIQUE`, `NOT NULL` | Subdomain slug e.g. `sunshine-properties` |
-| `organization_type` | `organization_type` | `DEFAULT 'OWNER'` | `OWNER` vs `BROKERAGE` vs `HYBRID` |
-| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Account active state |
+### `profiles`
 
----
+Columns: `id`, `organization_id`, `email`, `password_hash`, `phone`, `full_name`,
+`avatar_url`, `role`, `permissions`, `is_active`, `metadata`, `created_at`,
+`updated_at`.
 
-## 2. `profiles`
-User logins belonging to an organization.
+`organization_id` references `organizations`. `(id, organization_id)` is unique,
+and `(organization_id, email)` has a unique index.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | User Unique ID |
-| `organization_id` | `UUID` | `FOREIGN KEY` ➔ `organizations` | Parent organization |
-| `email` | `TEXT` | `NOT NULL` | User Email |
-| `full_name` | `TEXT` | `NOT NULL` | User Name |
-| `role` | `user_role` | `DEFAULT 'ADMIN'` | `ADMIN`, `PROPERTY_MANAGER`, `AGENT`, `TENANT` |
+### `branding_settings`
 
----
+Columns: `id`, `organization_id`, `legal_business_name`, `trade_name`,
+`owner_pan`, `owner_gstin`, `rera_number`, `registered_office_address`,
+`contact_phone`, `contact_email`, `agency_logo_url`, `primary_color`,
+`secondary_color`, `signature_url`, `owner_upi_id`, `bank_account_number`,
+`bank_ifsc_code`, `bank_name`, `account_holder_name`, `metadata`, `created_at`,
+`updated_at`.
 
-## 3. `landlords`
-Legal property owners. For Brokers, stores client landlords with full bank payout details.
+There is one branding record per organization.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Landlord Identifier |
-| `managing_organization_id` | `UUID` | `FOREIGN KEY` ➔ `organizations` | Managing Agency / Owner Org |
-| `legal_name` | `TEXT` | `NOT NULL` | Legal Name for Agreements |
-| `phone` | `TEXT` | `NOT NULL` | Contact Mobile Number |
-| `pan` | `TEXT` | - | PAN for Tax / TDS Compliance |
-| `bank_account_number` | `TEXT` | - | Landlord Payout Bank Account |
-| `bank_ifsc_code` | `TEXT` | - | Bank IFSC Code |
-| `owner_upi_id` | `TEXT` | - | Direct Payout UPI VPA |
+### `landlords`
 
----
+Columns: `id`, `managing_organization_id`, `profile_id`, `owner_type`,
+`legal_name`, `email`, `phone`, `pan`, `gstin`, `address`,
+`bank_account_number`, `bank_ifsc_code`, `bank_name`, `account_holder_name`,
+`owner_upi_id`, `is_active`, `metadata`, `created_at`, `updated_at`.
 
-## 4. `properties`
-Properties (Buildings, PG Complexes, Flats) managed by an organization.
+`managing_organization_id` references `organizations`. `profile_id` is an
+optional profile link. `(id, managing_organization_id)` is unique.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Property Identifier |
-| `organization_id` | `UUID` | `FOREIGN KEY` ➔ `organizations` | Managing Organization |
-| `landlord_id` | `UUID` | `FOREIGN KEY` ➔ `landlords` | Legal Property Owner |
-| `name` | `TEXT` | `NOT NULL` | Property Name e.g. "Sunshine PG" |
-| `type` | `property_type` | `DEFAULT 'PG'` | PG vs Flat vs Commercial |
+## Property and Lease Tables
 
----
+### `properties`
 
-## 5. `units`
-PG Beds & Flat Units. Supports PG Room-Bed hierarchy using `parent_unit_id`.
+Columns: `id`, `organization_id`, `landlord_id`, `name`, `type`, `address`,
+`city`, `state`, `pincode`, `landmark`, `latitude`, `longitude`, `amenities`,
+`rules`, `images`, `description`, `is_active`, `metadata`, `created_at`,
+`updated_at`.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Unit / Bed Identifier |
-| `property_id` | `UUID` | `FOREIGN KEY` ➔ `properties` | Parent Property |
-| `parent_unit_id` | `UUID` | `FOREIGN KEY` ➔ `units` | Nullable parent for PG Room ➔ Bed Slot |
-| `unit_number` | `TEXT` | `NOT NULL` | e.g. "Flat 402" or "Room 101 - Bed A" |
-| `monthly_rent` | `DECIMAL(10,2)`| `NOT NULL` | Base Rent Amount |
-| `status` | `unit_status` | `DEFAULT 'AVAILABLE'`| Availability State |
+Coordinates are range-checked. `(id, organization_id)` is unique. If a landlord
+is assigned, the composite `(landlord_id, organization_id)` relationship must
+match the landlord's managing organization.
 
----
+### `units`
 
-## 6. `leases`
-Tenancy contracts with fee terms (`brokerage_fee_type`, `maintenance_fee_type`, `agreement_fee_amount`).
+Columns: `id`, `organization_id`, `property_id`, `parent_unit_id`, `unit_number`,
+`floor_number`, `sharing_type`, `monthly_rent`, `security_deposit`, `status`,
+`current_lease_id`, `amenities`, `notes`, `metadata`, `created_at`, `updated_at`.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Lease Contract ID |
-| `organization_id` | `UUID` | `FOREIGN KEY` ➔ `organizations` | Parent Org |
-| `unit_id` | `UUID` | `FOREIGN KEY` ➔ `units` | Assigned Unit / Bed |
-| `tenant_id` | `UUID` | `FOREIGN KEY` ➔ `tenants` | Renter |
-| `landlord_id` | `UUID` | `FOREIGN KEY` ➔ `landlords` | Legal Landlord signing e-Sign |
-| `created_by` | `UUID` | `FOREIGN KEY` ➔ `profiles` | Staff/Broker user who created lease |
-| `brokerage_fee_type` | `brokerage_fee_type` | `DEFAULT 'NONE'` | `NONE`, `ONE_TIME`, `RECURRING_PERCENTAGE` |
-| `brokerage_amount` | `DECIMAL(10,2)`| `DEFAULT 0.00` | Upfront fee or % |
-| `maintenance_fee_type`| `maintenance_fee_type`| `DEFAULT 'NONE'` | `NONE`, `MONTHLY`, `ANNUAL_ONE_TIME` |
+`parent_unit_id` supports room-to-bed hierarchy. `(property_id, unit_number)`
+is unique. Rent and deposit cannot be negative. `property_id`, `parent_unit_id`,
+and `current_lease_id` are foreign-key relationships; property and parent-unit
+links are organization-scoped.
 
----
+### `tenants`
 
-## 7. `meter_readings` [NEW]
-Tracks room sub-meter electricity & water readings for automated utility line-item billing.
+Columns: `id`, `organization_id`, `user_id`, `full_name`, `email`, `phone`,
+`permanent_address`, `emergency_contact_name`, `emergency_contact_phone`,
+`emergency_contact_relation`, `id_proof_type`, `id_proof_last4`,
+`id_proof_number`, `id_proof_document_url`, `kyc_status`, `metadata`,
+`created_at`, `updated_at`.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY` | Meter Reading ID |
-| `unit_id` | `UUID` | `FOREIGN KEY` ➔ `units` | Target Unit / PG Room |
-| `meter_type` | `TEXT` | `DEFAULT 'ELECTRICITY'` | ELECTRICITY / WATER |
-| `previous_reading` | `DECIMAL(10,2)`| `NOT NULL` | Previous meter index |
-| `current_reading` | `DECIMAL(10,2)`| `NOT NULL` | Current meter index |
-| `units_consumed` | `DECIMAL(10,2)`| `GENERATED ALWAYS` | `current_reading - previous_reading` |
-| `total_charge` | `DECIMAL(10,2)`| `GENERATED ALWAYS` | `units_consumed * rate_per_unit` |
+The encrypted identity value is stored in `id_proof_number`. `(id,
+organization_id)` is unique.
 
----
+### `agreement_templates`
 
-## 8. `invoices` & `invoice_line_items` [NEW]
-Sub-ledger for monthly rent statements, move-in invoices, line-item breakdowns, and balance due tracking.
+Columns: `id`, `organization_id`, `title`, `template_type`, `content_template`,
+`is_default`, `metadata`, `created_at`, `updated_at`.
 
-| Table | Column | Description |
-| :--- | :--- | :--- |
-| **`invoices`** | `invoice_number` | Org-Scoped Number e.g. `INV-2026-000001` |
-| | `invoice_type` | `MOVE_IN` vs `MONTHLY_RENT` |
-| | `total_amount` | Sum of all line items |
-| | `paid_amount` | Auto-updated by trigger from `receipts` |
-| | `balance_due` | `GENERATED ALWAYS` (`total_amount - paid_amount`) |
-| **`invoice_line_items`**| `charge_type` | `RENT`, `SECURITY_DEPOSIT`, `ONE_TIME_BROKERAGE`, `ELECTRICITY_BILL`, `MAINTENANCE_FEE`, `AGREEMENT_FEE` |
+`content_template` stores the Markdown/HTML template. `(id, organization_id)`
+is unique.
 
----
+### `leases`
 
-## 9. `landlord_payouts` [NEW]
-Broker settlement ledger for paying landlords net rent collected minus agency commission.
+Columns: `id`, `organization_id`, `unit_id`, `tenant_id`, `landlord_id`,
+`created_by`, `agreement_template_id`, `start_date`, `end_date`, `monthly_rent`,
+`security_deposit`, `rent_due_day`, `notice_period_days`,
+`lock_in_period_months`, `brokerage_fee_type`, `brokerage_amount`,
+`maintenance_fee_type`, `maintenance_fee_amount`, `agreement_fee_amount`,
+`custom_clauses`, `terms_and_conditions`, `status`, `agreement_pdf_url`,
+`is_esign_completed`, `esign_transaction_id`, `e_stamp_number`, `metadata`,
+`created_at`, `updated_at`.
 
-| Field | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `payout_number` | `TEXT` | `NOT NULL` | Org-Scoped Payout No. e.g. `PAY-2026-000001` |
-| `landlord_id` | `UUID` | `FOREIGN KEY` ➔ `landlords` | Client Landlord |
-| `total_collected` | `DECIMAL(10,2)`| `NOT NULL` | Total Tenant Rent Collected |
-| `commission_amount`| `DECIMAL(10,2)`| `DEFAULT 0.00` | Agency Commission Fee Deducted |
-| `net_payout_amount`| `DECIMAL(10,2)`| `NOT NULL` | Net Bank Amount Transferred to Landlord |
-| `utr_number` | `TEXT` | - | Bank Transfer Reference UTR |
-| `payout_status` | `payout_status` | `DEFAULT 'PENDING'` | `PENDING`, `SETTLED`, `FAILED` |
+Constraints include valid date order, rent/deposit/fee non-negativity, and a
+rent due day from 1 through 31. Unit, tenant, landlord, creator, and agreement
+template references are organization-scoped. `(id, organization_id)` is unique.
 
----
+## Billing and Utility Tables
 
-## Automated DB Triggers & Indexes
+### `meter_readings`
 
-1. **`trg_sync_unit_lease_status`**:
-   - Automatically marks `units.status = 'OCCUPIED'` and populates `units.current_lease_id` when a lease becomes `ACTIVE`.
-   - Frees unit back to `AVAILABLE` when lease expires or is cancelled.
-2. **`trg_sync_invoice_payment_status`**:
-   - Automatically recalculates `invoices.paid_amount`, computes `balance_due`, and updates invoice status (`UNPAID` ➔ `PARTIAL` ➔ `PAID`) whenever a payment `receipt` is inserted, updated, or **deleted**.
-   - Handles receipt re-assignment across invoices cleanly.
-3. **Multi-Tenant Composite & Unique Indexes**:
-   - `idx_unique_monthly_rent_invoice`: Partial unique index on `(lease_id, billing_period_start)` for `MONTHLY_RENT` invoices to prevent duplicate monthly rent billing.
-   - `idx_invoices_overdue_lookup`: Partial index on `(organization_id, due_date)` WHERE `status = 'UNPAID'` for high-speed overdue invoice identification.
-   - `idx_leases_org_status`, `idx_landlords_org`, `idx_invoices_org_status`, `idx_payouts_landlord`, `idx_meter_readings_unit`.
-4. **Row Level Security (RLS) Policies**:
-   - Organization-authenticated policies on `properties`, `units`, `leases`, `invoices`, `receipts`, and `landlord_payouts` enforcing database-level tenant isolation via `app.current_organization_id`.
+Columns: `id`, `organization_id`, `unit_id`, `meter_type`, `previous_reading`,
+`current_reading`, `units_consumed`, `rate_per_unit`, `total_charge`,
+`reading_date`, `is_billed`, `notes`, `created_at`, `updated_at`.
 
+`units_consumed` and `total_charge` are stored generated columns. `meter_type`
+must be `ELECTRICITY`, `WATER`, or `GAS`. Current readings cannot be lower than
+previous readings, and rates cannot be negative.
+
+### `invoices`
+
+Columns: `id`, `organization_id`, `invoice_number`, `lease_id`, `tenant_id`,
+`unit_id`, `invoice_type`, `billing_period_start`, `billing_period_end`,
+`due_date`, `subtotal_amount`, `tax_amount`, `discount_amount`, `total_amount`,
+`paid_amount`, `balance_due`, `status`, `invoice_pdf_url`, `notes`, `metadata`,
+`created_at`, `updated_at`.
+
+`balance_due` is a stored generated column equal to `total_amount - paid_amount`.
+Amounts cannot be negative. `(id, organization_id)` is unique.
+
+### `invoice_line_items`
+
+Columns: `id`, `invoice_id`, `organization_id`, `charge_type`, `description`,
+`quantity`, `unit_price`, `amount`, `created_at`.
+
+Line items support rent, deposit, brokerage, recurring commission, maintenance,
+agreement, electricity, water, late fee, token, and other charges. The invoice
+and organization relationship is enforced with a composite foreign key.
+
+### `receipts`
+
+Columns: `id`, `receipt_number`, `organization_id`, `invoice_id`, `lease_id`,
+`tenant_id`, `receipt_type`, `amount`, `payment_mode`, `transaction_reference`,
+`payment_date`, `notes`, `pdf_url`, `metadata`, `created_at`, `updated_at`.
+
+`invoice_id` is nullable for advance/token receipts. Amount must be greater than
+zero. Receipt, invoice, lease, tenant, and organization relationships are
+organization-scoped. `(id, organization_id)` is unique.
+
+### `landlord_payouts`
+
+Columns: `id`, `payout_number`, `organization_id`, `landlord_id`, `property_id`,
+`total_collected`, `commission_amount`, `deductions_amount`,
+`net_payout_amount`, `payout_mode`, `payout_status`, `utr_number`, `payout_date`,
+`notes`, `statement_pdf_url`, `created_at`, `updated_at`.
+
+Collected, commission, deductions, and net payout amounts cannot be negative.
+Landlord and optional property references are organization-scoped.
+
+## Compliance and Integration Tables
+
+### `bbps_transactions`
+
+Columns: `id`, `organization_id`, `property_id`, `utility_type`, `biller_id`,
+`consumer_number`, `bill_amount`, `due_date`, `status`, `transaction_ref`,
+`created_at`, `updated_at`.
+
+### `police_verifications`
+
+Columns: `id`, `organization_id`, `lease_id`, `tenant_id`, `landlord_id`,
+`police_station_name`, `jurisdiction_district`, `status`, `submission_date`,
+`application_reference_no`, `verification_pdf_url`, `metadata`, `created_at`,
+`updated_at`.
+
+Lease, tenant, and optional landlord references are organization-scoped.
+
+### `esign_transactions`
+
+Columns: `id`, `organization_id`, `lease_id`, `provider`, `transaction_id`,
+`stamp_paper_number`, `stamp_amount`, `status`, `signed_pdf_url`,
+`audit_trail_json`, `created_at`, `updated_at`.
+
+### `whatsapp_logs`
+
+Columns: `id`, `organization_id`, `tenant_id`, `wamid`, `phone_number`,
+`direction`, `type`, `message_body`, `template_name`, `status`, `error_details`,
+`created_at`, `updated_at`.
+
+The tenant link is optional and organization-scoped when present.
+
+### `property_leads`
+
+Columns: `id`, `organization_id`, `property_id`, `unit_id`, `assigned_to`, `name`,
+`phone`, `email`, `source`, `status`, `notes`, `follow_up_date`, `metadata`,
+`created_at`, `updated_at`.
+
+Property, optional unit, and optional assigned profile references are
+organization-scoped.
+
+### `maintenance_tickets`
+
+Columns: `id`, `organization_id`, `unit_id`, `tenant_id`, `assigned_to`, `title`,
+`description`, `category`, `priority`, `status`, `images`, `created_at`,
+`updated_at`.
+
+Unit, tenant, and optional assigned profile references are organization-scoped.
+
+### `integration_logs`
+
+Columns: `id`, `organization_id`, `provider`, `endpoint`, `request_payload`,
+`response_payload`, `status_code`, `execution_time_ms`, `error_message`,
+`created_at`, `updated_at`.
+
+The organization link is optional for platform-level integration events.
+
+## Triggers and Generated Values
+
+### `update_updated_at_column`
+
+Before-update triggers maintain `updated_at` on all 21 tables.
+
+### `sync_unit_lease_status`
+
+An after-insert or after-update-of-`status, unit_id` trigger on `leases`:
+
+- Marks the unit `OCCUPIED` and sets `current_lease_id` for an active lease.
+- Releases the old unit when an active lease changes units.
+- Marks the unit `AVAILABLE` when a lease becomes `EXPIRED`, `TERMINATED`, or
+  `CANCELLED`.
+
+### `sync_invoice_payment_status`
+
+An after-insert/update/delete trigger on `receipts`:
+
+- Sums receipts linked to the invoice into `paid_amount`.
+- Sets `PAID`, `PARTIAL`, `UNPAID`, or `OVERDUE` based on payment and due date.
+- Preserves `DRAFT` and `CANCELLED` invoices.
+- Recalculates both the old and new invoice when a receipt is reassigned.
+
+## Indexes and Uniqueness
+
+- Unique profile email per organization.
+- Unique receipt, invoice, and payout numbers per organization.
+- One active lease per unit.
+- One `MONTHLY_RENT` invoice per lease and billing-period start.
+- Unique tenant phone per organization.
+- Organization/status and tenant/status lookup indexes for leases and invoices.
+- Unit, meter, receipt, payout, WhatsApp, lead, and integration lookup indexes.
+- Overdue lookup index for invoices with status `UNPAID` or `PARTIAL`.
+
+## Row-Level Security
+
+RLS is enabled on all 21 tables. Public read policies expose active properties
+and available units. Organization policies use
+`public.current_organization_id()`, which reads the PostgreSQL setting
+`app.current_organization_id`.
+
+The setting must be applied on the same database connection used by the query.
+The Docker development configuration currently connects as the PostgreSQL
+superuser; PostgreSQL superusers bypass RLS. Production must use a dedicated
+non-superuser application role and configure the organization context per
+transaction.
+
+## Business Scope
+
+The schema supports:
+
+- Owner, brokerage, and hybrid organization types.
+- Client landlords and landlord payouts.
+- PG rooms with child beds.
+- Lease brokerage and maintenance fee terms.
+- Move-in and recurring invoice line items.
+- Electricity, water, and gas meter readings.
+- Receipts, partial payments, invoice balances, and overdue status.
+- BBPS, police verification, e-sign, WhatsApp, lead, maintenance, and
+  integration audit records.
+
+The tables record BBPS, e-sign, KYC, and WhatsApp integration state; external
+provider API execution remains an application/integration responsibility.
