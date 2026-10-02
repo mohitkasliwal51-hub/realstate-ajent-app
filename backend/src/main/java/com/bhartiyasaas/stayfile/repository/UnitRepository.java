@@ -16,7 +16,6 @@ import java.util.UUID;
 
 @Repository
 public interface UnitRepository extends JpaRepository<Unit, UUID> {
-    List<Unit> findByPropertyId(UUID propertyId);
     List<Unit> findByPropertyIdAndOrganizationId(UUID propertyId, UUID organizationId);
     List<Unit> findByPropertyIdAndOrganizationIdAndStatus(UUID propertyId, UUID organizationId, UnitStatus status);
     List<Unit> findByOrganizationIdAndStatus(UUID organizationId, UnitStatus status);
@@ -25,6 +24,6 @@ public interface UnitRepository extends JpaRepository<Unit, UUID> {
     long countByPropertyIdAndOrganizationId(UUID propertyId, UUID organizationId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT u FROM Unit u WHERE u.id = :id")
-    Optional<Unit> findByIdForUpdate(@Param("id") UUID id);
+    @Query("SELECT u FROM Unit u WHERE u.id = :id AND u.organization.id = :organizationId")
+    Optional<Unit> findByIdForUpdate(@Param("id") UUID id, @Param("organizationId") UUID organizationId);
 }

@@ -21,20 +21,20 @@ public interface LeaseRepository extends JpaRepository<Lease, UUID> {
     List<Lease> findByOrganizationId(UUID organizationId);
     List<Lease> findByOrganizationIdAndStatus(UUID organizationId, LeaseStatus status);
     Optional<Lease> findByIdAndOrganizationId(UUID id, UUID organizationId);
-    Optional<Lease> findByUnitIdAndStatus(UUID unitId, LeaseStatus status);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT l FROM Lease l WHERE l.unit.id = :unitId AND l.status IN (com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.ACTIVE, com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.PENDING_ESIGN) AND l.startDate <= :endDate AND l.endDate >= :startDate")
+    @Query("SELECT l FROM Lease l WHERE l.unit.id = :unitId AND l.organization.id = :organizationId AND l.status IN (com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.ACTIVE, com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.PENDING_ESIGN) AND l.startDate <= :endDate AND l.endDate >= :startDate")
     List<Lease> findOverlappingLeases(
             @Param("unitId") UUID unitId,
+            @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
 
-    @Query("SELECT l FROM Lease l WHERE l.unit.id = :unitId AND l.status IN :statuses " +
+        @Query("SELECT l FROM Lease l WHERE l.unit.id = :unitId AND l.organization.id = :organizationId AND l.status IN :statuses " +
            "AND l.startDate <= :endDate AND l.endDate >= :startDate")
     List<Lease> findOverlappingLeases(
             @Param("unitId") UUID unitId,
+            @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("statuses") Collection<LeaseStatus> statuses

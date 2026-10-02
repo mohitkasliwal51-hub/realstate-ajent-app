@@ -13,7 +13,6 @@ import com.bhartiyasaas.stayfile.entity.enums.PayoutStatus;
 @Repository
 public interface LandlordPayoutRepository extends JpaRepository<LandlordPayout, UUID> {
     List<LandlordPayout> findByOrganizationId(UUID organizationId);
-    List<LandlordPayout> findByLandlordId(UUID landlordId);
     List<LandlordPayout> findByLandlordIdAndOrganizationId(UUID landlordId, UUID organizationId);
     List<LandlordPayout> findByOrganizationIdAndPayoutStatus(UUID organizationId, PayoutStatus status);
     Optional<LandlordPayout> findByIdAndOrganizationId(UUID id, UUID organizationId);

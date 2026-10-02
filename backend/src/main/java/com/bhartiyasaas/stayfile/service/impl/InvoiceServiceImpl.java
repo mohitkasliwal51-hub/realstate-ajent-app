@@ -139,7 +139,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
         tenantAccessService.validateTenantOwnership(lease.getTenant(), "invoice");
-        return invoiceMapper.toResponseList(invoiceRepository.findByLeaseId(leaseId));
+        return invoiceMapper.toResponseList(invoiceRepository.findByLeaseIdAndOrganizationId(leaseId, organizationId));
     }
 
     @Override
@@ -160,8 +160,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
 
-        Invoice existing = invoiceRepository.findByLeaseIdAndBillingPeriodStartAndInvoiceType(
-            leaseId, lease.getStartDate(), InvoiceType.MOVE_IN).orElse(null);
+        Invoice existing = invoiceRepository.findByLeaseIdAndOrganizationIdAndBillingPeriodStartAndInvoiceType(
+            leaseId, organizationId, lease.getStartDate(), InvoiceType.MOVE_IN).orElse(null);
         if (existing != null) {
             return invoiceMapper.toResponse(existing);
         }
@@ -220,8 +220,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         List<Invoice> generatedInvoices = new ArrayList<>();
 
         for (Lease lease : activeLeases) {
-            Invoice existing = invoiceRepository.findByLeaseIdAndBillingPeriodStartAndInvoiceType(
-                    lease.getId(), startOfMonth, InvoiceType.MONTHLY_RENT).orElse(null);
+                Invoice existing = invoiceRepository.findByLeaseIdAndOrganizationIdAndBillingPeriodStartAndInvoiceType(
+                    lease.getId(), organizationId, startOfMonth, InvoiceType.MONTHLY_RENT).orElse(null);
             if (existing != null) {
                 generatedInvoices.add(existing);
                 continue;

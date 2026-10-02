@@ -50,7 +50,8 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         BigDecimal previous = request.getPreviousReading();
         if (previous == null) {
             previous = meterReadingRepository
-                .findTopByUnitIdAndMeterTypeOrderByReadingDateDesc(request.getUnitId(), meterType)
+                .findTopByUnitIdAndOrganizationIdAndMeterTypeOrderByReadingDateDesc(
+                    request.getUnitId(), organizationId, meterType)
                     .map(MeterReading::getCurrentReading)
                     .orElse(BigDecimal.ZERO);
         }
@@ -87,7 +88,7 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         UUID organizationId = currentUser.getOrganizationId();
         unitRepository.findByIdAndOrganizationId(unitId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + unitId));
-        return meterReadingMapper.toResponseList(meterReadingRepository.findByUnitId(unitId));
+        return meterReadingMapper.toResponseList(meterReadingRepository.findByUnitIdAndOrganizationId(unitId, organizationId));
     }
 
     @Override
@@ -97,6 +98,7 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         var lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + leaseId));
         tenantAccessService.validateTenantOwnership(lease.getTenant(), "meter readings");
-        return meterReadingMapper.toResponseList(meterReadingRepository.findByUnitId(lease.getUnit().getId()));
+        return meterReadingMapper.toResponseList(meterReadingRepository.findByUnitIdAndOrganizationId(
+            lease.getUnit().getId(), organizationId));
     }
 }

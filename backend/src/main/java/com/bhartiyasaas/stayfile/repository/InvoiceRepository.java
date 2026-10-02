@@ -18,11 +18,10 @@ import com.bhartiyasaas.stayfile.entity.enums.InvoiceType;
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     List<Invoice> findByOrganizationId(UUID organizationId);
-    List<Invoice> findByLeaseId(UUID leaseId);
-    List<Invoice> findByTenantId(UUID tenantId);
+    List<Invoice> findByLeaseIdAndOrganizationId(UUID leaseId, UUID organizationId);
     List<Invoice> findByOrganizationIdAndStatus(UUID organizationId, InvoiceStatus status);
-        Optional<Invoice> findByLeaseIdAndBillingPeriodStartAndInvoiceType(
-            UUID leaseId, LocalDate billingPeriodStart, InvoiceType invoiceType);
+    Optional<Invoice> findByLeaseIdAndOrganizationIdAndBillingPeriodStartAndInvoiceType(
+            UUID leaseId, UUID organizationId, LocalDate billingPeriodStart, InvoiceType invoiceType);
     Optional<Invoice> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Optional<Invoice> findByOrganizationIdAndInvoiceNumber(UUID organizationId, String invoiceNumber);
 

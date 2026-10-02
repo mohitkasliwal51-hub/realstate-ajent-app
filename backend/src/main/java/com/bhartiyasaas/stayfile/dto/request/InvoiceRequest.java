@@ -2,6 +2,8 @@ package com.bhartiyasaas.stayfile.dto.request;
 
 import com.bhartiyasaas.stayfile.entity.enums.ChargeType;
 import com.bhartiyasaas.stayfile.entity.enums.InvoiceType;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -37,15 +39,13 @@ public class InvoiceRequest {
     @NotNull(message = "Due date is required")
     private LocalDate dueDate;
 
-    private BigDecimal subtotalAmount;
+    @DecimalMin(value = "0.00", message = "Tax amount cannot be negative")
     private BigDecimal taxAmount;
+    @DecimalMin(value = "0.00", message = "Discount amount cannot be negative")
     private BigDecimal discountAmount;
 
-    @NotNull(message = "Total amount is required")
-    private BigDecimal totalAmount;
-
     private String notes;
-    private List<LineItemRequest> lineItems;
+    private List<@Valid LineItemRequest> lineItems;
 
     @Data
     @NoArgsConstructor
@@ -54,8 +54,11 @@ public class InvoiceRequest {
     public static class LineItemRequest {
         private ChargeType chargeType;
         private String description;
+        @DecimalMin(value = "0.00", message = "Quantity cannot be negative")
         private BigDecimal quantity;
+        @DecimalMin(value = "0.00", message = "Unit price cannot be negative")
         private BigDecimal unitPrice;
+        @DecimalMin(value = "0.00", message = "Amount cannot be negative")
         private BigDecimal amount;
     }
 }

@@ -47,7 +47,7 @@ public class LeaseServiceImpl implements LeaseService {
             throw new BadRequestException("Lease end date must be on or after the start date");
         }
 
-        Unit unit = unitRepository.findByIdForUpdate(request.getUnitId())
+        Unit unit = unitRepository.findByIdForUpdate(request.getUnitId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + request.getUnitId()));
 
         if (unit.getOrganization() == null || !unit.getOrganization().getId().equals(organizationId)) {
@@ -81,7 +81,7 @@ public class LeaseServiceImpl implements LeaseService {
 
         // Rule 2: Prevent overlapping leases
         List<Lease> overlapping = leaseRepository.findOverlappingLeases(
-                unit.getId(), request.getStartDate(), request.getEndDate());
+            unit.getId(), organizationId, request.getStartDate(), request.getEndDate());
         if (!overlapping.isEmpty()) {
             throw new BadRequestException("Unit already booked for selected dates");
         }

@@ -1,6 +1,7 @@
 package com.bhartiyasaas.stayfile.dto.request;
 
 import com.bhartiyasaas.stayfile.entity.enums.PaymentMode;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -20,13 +21,13 @@ public class LandlordPayoutRequest {
     private UUID propertyId;
 
     @NotNull(message = "Total collected is required")
+    @DecimalMin(value = "0.00", message = "Total collected cannot be negative")
     private BigDecimal totalCollected;
 
+    @DecimalMin(value = "0.00", message = "Commission cannot be negative")
     private BigDecimal commissionAmount;
+    @DecimalMin(value = "0.00", message = "Deductions cannot be negative")
     private BigDecimal deductionsAmount;
-
-    @NotNull(message = "Net payout amount is required")
-    private BigDecimal netPayoutAmount;
 
     @Builder.Default
     private PaymentMode payoutMode = PaymentMode.NET_BANKING;
