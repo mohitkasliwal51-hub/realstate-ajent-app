@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { FileUpload } from '@/components/ui/FileUpload';
+import { validateIndianPhone, validateAadhaar } from '@/lib/validation';
 
 export default function TenantsPage() {
   const { user } = useAuth();
@@ -27,6 +30,7 @@ export default function TenantsPage() {
     permanentAddress: '',
     idProofType: 'Aadhaar Card',
     idProofNumber: '',
+    idProofDocumentUrl: '',
   });
 
   const loadTenants = async () => {
@@ -49,10 +53,24 @@ export default function TenantsPage() {
   const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.organizationId) return;
+    if (formData.phone && !validateIndianPhone(formData.phone)) {
+      alert('Invalid 10-digit Indian phone number.');
+      return;
+    }
+    if (formData.emergencyContactPhone && !validateIndianPhone(formData.emergencyContactPhone)) {
+      alert('Invalid 10-digit Indian emergency contact phone number.');
+      return;
+    }
+    if (formData.idProofType === 'Aadhaar Card' && formData.idProofNumber && !validateAadhaar(formData.idProofNumber)) {
+      alert('Invalid 12-digit Aadhaar Card number.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await tenantApi.createTenant({
         ...formData,
+        idProofDocumentUrl: formData.idProofDocumentUrl || undefined,
       });
       setIsModalOpen(false);
       setCurrentStep(1);
@@ -66,6 +84,7 @@ export default function TenantsPage() {
         permanentAddress: '',
         idProofType: 'Aadhaar Card',
         idProofNumber: '',
+        idProofDocumentUrl: '',
       });
       await loadTenants();
     } catch (err) {
@@ -96,7 +115,7 @@ export default function TenantsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading tenants...</div>
+        <TableSkeleton rows={5} columns={4} />
       ) : tenants.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
           <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
@@ -243,31 +262,41 @@ export default function TenantsPage() {
             onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
           />}
 
-          {currentStep === 4 && <div className="grid grid-cols-2 gap-3">
-            <div className="w-full flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                4. ID Proof Type
-              </label>
-              <select
-                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.idProofType}
-                onChange={(e) => setFormData({ ...formData, idProofType: e.target.value })}
-              >
-                <option value="Aadhaar Card">Aadhaar Card</option>
-                <option value="PAN Card">PAN Card</option>
-                <option value="Passport">Passport</option>
-                <option value="Driving License">Driving License</option>
-              </select>
-            </div>
+          {currentStep === 4 && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="w-full flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                    4. ID Proof Type
+                  </label>
+                  <select
+                    className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.idProofType}
+                    onChange={(e) => setFormData({ ...formData, idProofType: e.target.value })}
+                  >
+                    <option value="Aadhaar Card">Aadhaar Card</option>
+                    <option value="PAN Card">PAN Card</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving License">Driving License</option>
+                  </select>
+                </div>
 
-            <Input
-              label="ID Proof Number"
-              placeholder="e.g. 1234-5678-9012"
-              value={formData.idProofNumber}
-              onChange={(e) => setFormData({ ...formData, idProofNumber: e.target.value })}
-            />
-          </div>
-          }
+                <Input
+                  label="ID Proof Number"
+                  placeholder="e.g. 1234-5678-9012"
+                  value={formData.idProofNumber}
+                  onChange={(e) => setFormData({ ...formData, idProofNumber: e.target.value })}
+                />
+              </div>
+
+              <FileUpload
+                category="TENANT_KYC"
+                label="Upload ID Proof Document (PDF / Image)"
+                value={formData.idProofDocumentUrl}
+                onChange={(url) => setFormData({ ...formData, idProofDocumentUrl: url })}
+              />
+            </div>
+          )}
 
           {currentStep === 5 && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
             Review complete. Submit this tenant profile for KYC verification.

@@ -256,7 +256,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             subtotal = subtotal.add(lease.getMonthlyRent());
 
             // 2. Utility / Meter Reading Line Items
-            List<MeterReading> readings = meterReadingRepository.findByUnitIdAndIsBilledFalseOrderByReadingDateAsc(lease.getUnit().getId());
+            List<MeterReading> readings = meterReadingRepository.findByUnitIdAndOrganizationIdAndIsBilledFalseOrderByReadingDateAsc(lease.getUnit().getId(), organizationId);
             for (MeterReading reading : readings) {
                 if (reading.getTotalCharge() != null && reading.getTotalCharge().compareTo(BigDecimal.ZERO) > 0) {
                     InvoiceLineItem utilityItem = new InvoiceLineItem();
@@ -344,7 +344,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 0 * * *")
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 1 * * ?", zone = "Asia/Kolkata")
     @Transactional
     public void processOverdueInvoicesScheduled() {
         invoiceRepository.updateOverdueInvoices(
@@ -353,6 +353,72 @@ public class InvoiceServiceImpl implements InvoiceService {
             InvoiceStatus.UNPAID, 
             InvoiceStatus.PARTIAL
         );
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 2 1 * ?", zone = "Asia/Kolkata")
+    @Transactional
+    public void generateMonthlyInvoicesScheduled() {
+        List<Organization> orgs = organizationRepository.findAll();
+        for (Organization org : orgs) {
+            try {
+                generateMonthlyInvoicesForOrgId(org.getId());
+            } catch (Exception e) {
+                // Log and continue for next organization
+            }
+        }
+    }
+
+    private void generateMonthlyInvoicesForOrgId(UUID organizationId) {
+        Organization organization = organizationRepository.findById(organizationId).orElse(null);
+        if (organization == null) return;
+
+        List<Lease> activeLeases = leaseRepository.findByOrganizationId(organizationId).stream()
+                .filter(l -> l.getStatus() == LeaseStatus.ACTIVE)
+                .collect(Collectors.toList());
+
+        LocalDate today = LocalDate.now();
+        LocalDate startOfMonth = today.withDayOfMonth(1);
+        LocalDate endOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+
+        for (Lease lease : activeLeases) {
+            Invoice existing = invoiceRepository.findByLeaseIdAndOrganizationIdAndBillingPeriodStartAndInvoiceType(
+                lease.getId(), organizationId, startOfMonth, InvoiceType.MONTHLY_RENT).orElse(null);
+            if (existing != null) continue;
+
+            Invoice invoice = new Invoice();
+            invoice.setOrganization(organization);
+            invoice.setLease(lease);
+            invoice.setTenant(lease.getTenant());
+            invoice.setUnit(lease.getUnit());
+            invoice.setInvoiceNumber(createInvoiceNumber("MONTHLY"));
+            invoice.setInvoiceType(InvoiceType.MONTHLY_RENT);
+            invoice.setStatus(InvoiceStatus.UNPAID);
+            invoice.setBillingPeriodStart(startOfMonth);
+            invoice.setBillingPeriodEnd(endOfMonth);
+            invoice.setDueDate(startOfMonth.withDayOfMonth(Math.min(lease.getRentDueDay() != null ? lease.getRentDueDay() : 5, endOfMonth.getDayOfMonth())));
+            invoice.setPaidAmount(BigDecimal.ZERO);
+
+            List<InvoiceLineItem> lineItems = new ArrayList<>();
+            BigDecimal subtotal = BigDecimal.ZERO;
+
+            InvoiceLineItem rentItem = new InvoiceLineItem();
+            rentItem.setOrganization(organization);
+            rentItem.setInvoice(invoice);
+            rentItem.setChargeType(ChargeType.RENT);
+            rentItem.setDescription("Monthly Rent - " + startOfMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+            rentItem.setQuantity(BigDecimal.ONE);
+            rentItem.setUnitPrice(lease.getMonthlyRent());
+            rentItem.setAmount(lease.getMonthlyRent());
+            lineItems.add(rentItem);
+            subtotal = subtotal.add(lease.getMonthlyRent());
+
+            invoice.setSubtotalAmount(subtotal);
+            invoice.setTaxAmount(BigDecimal.ZERO);
+            invoice.setTotalAmount(subtotal);
+            invoice.setLineItems(lineItems);
+
+            invoiceRepository.save(invoice);
+        }
     }
 }
 

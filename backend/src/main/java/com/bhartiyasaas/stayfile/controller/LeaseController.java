@@ -63,6 +63,15 @@ public class LeaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
+    @GetMapping("/expiring")
+    public ResponseEntity<ApiResponse<List<LeaseResponse>>> getExpiringLeases(
+            @AuthenticationPrincipal SecurityUser currentUser,
+            @RequestParam(defaultValue = "30") int days) {
+        List<LeaseResponse> response = leaseService.getExpiringLeases(currentUser, days);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<LeaseResponse>> updateLeaseStatus(

@@ -9,6 +9,18 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import {
+  validateIndianPhone,
+  validatePan,
+  validateGstin,
+  validateIfsc,
+  normalizePan,
+  normalizeGstin,
+  normalizeIfsc,
+  normalizeIndianPhone,
+} from '@/lib/validation';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function LandlordsPage() {
@@ -20,6 +32,9 @@ export default function LandlordsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingLandlord, setEditingLandlord] = useState<Landlord | null>(null);
+
+  const [landlordToDelete, setLandlordToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     ownerType: 'INDIVIDUAL' as OwnerType,
@@ -96,12 +111,38 @@ export default function LandlordsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.phone && !validateIndianPhone(formData.phone)) {
+      alert('Please enter a valid 10-digit Indian phone number.');
+      return;
+    }
+    if (formData.pan && !validatePan(formData.pan)) {
+      alert('Please enter a valid 10-character PAN number (e.g., ABCDE1234F).');
+      return;
+    }
+    if (formData.gstin && !validateGstin(formData.gstin)) {
+      alert('Please enter a valid 15-character GSTIN (e.g., 07AAAAA0000A1Z5).');
+      return;
+    }
+    if (formData.bankIfscCode && !validateIfsc(formData.bankIfscCode)) {
+      alert('Please enter a valid 11-character IFSC code (e.g., SBIN0001234).');
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      phone: normalizeIndianPhone(formData.phone),
+      pan: normalizePan(formData.pan),
+      gstin: normalizeGstin(formData.gstin),
+      bankIfscCode: normalizeIfsc(formData.bankIfscCode),
+    };
+
     setIsSubmitting(true);
     try {
       if (editingLandlord) {
-        await landlordApi.updateLandlord(editingLandlord.id, formData);
+        await landlordApi.updateLandlord(editingLandlord.id, payload);
       } else {
-        await landlordApi.createLandlord(formData);
+        await landlordApi.createLandlord(payload);
       }
       setIsModalOpen(false);
       await loadLandlords();
@@ -112,13 +153,17 @@ export default function LandlordsPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to deactivate landlord "${name}"?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!landlordToDelete) return;
+    setIsDeleting(true);
     try {
-      await landlordApi.deleteLandlord(id);
+      await landlordApi.deleteLandlord(landlordToDelete.id);
+      setLandlordToDelete(null);
       await loadLandlords();
     } catch (err) {
       alert(getErrorMessage(err, 'Failed to deactivate landlord'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -149,7 +194,7 @@ export default function LandlordsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading landlords...</div>
+        <TableSkeleton rows={4} columns={3} />
       ) : landlords.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
           <Briefcase className="w-12 h-12 text-slate-400 mx-auto" />
@@ -214,7 +259,7 @@ export default function LandlordsPage() {
                 <Button size="sm" variant="secondary" onClick={() => handleOpenEdit(landlord)}>
                   <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => handleDelete(landlord.id, landlord.legalName)}>
+                <Button size="sm" variant="danger" onClick={() => setLandlordToDelete({ id: landlord.id, name: landlord.legalName })}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -222,6 +267,18 @@ export default function LandlordsPage() {
           ))}
         </div>
       )}
+
+      {/* Delete / Deactivate Landlord Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!landlordToDelete}
+        onClose={() => setLandlordToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Deactivate Landlord"
+        description={`Are you sure you want to deactivate landlord "${landlordToDelete?.name || ''}"?`}
+        warning="Deactivating a landlord will pause payout processing for their assigned properties."
+        confirmText="Deactivate Landlord"
+        isLoading={isDeleting}
+      />
 
       {/* Add / Edit Landlord Modal */}
       <Modal

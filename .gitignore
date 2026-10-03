@@ -8,6 +8,10 @@ backend/.env.local
 frontend/.env
 frontend/.env.local
 
+# Uploads
+uploads/
+backend/uploads/
+
 # IDE - IntelliJ IDEA
 .idea/
 *.iml

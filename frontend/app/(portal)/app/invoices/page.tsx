@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 
 export default function InvoicesPage() {
@@ -130,7 +131,7 @@ export default function InvoicesPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading invoices...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : invoices.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
           <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto" />

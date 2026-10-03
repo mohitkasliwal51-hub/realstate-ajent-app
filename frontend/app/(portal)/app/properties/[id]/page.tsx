@@ -14,6 +14,7 @@ import {
   Wrench,
   Ban,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { propertyApi, Property } from '@/lib/api/propertyApi';
@@ -21,8 +22,9 @@ import { unitApi, Unit, UnitStatus, SharingType } from '@/lib/api/unitApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Input } from '@/components/ui/Input';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getErrorMessage } from '@/lib/utils';
 
 export default function PropertyDetailsPage({
   params: paramsPromise,
@@ -38,8 +40,24 @@ export default function PropertyDetailsPage({
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDeleteUnit = async () => {
+    if (!unitToDelete) return;
+    setIsDeletingUnit(true);
+    try {
+      await unitApi.deleteUnit(unitToDelete.id);
+      setUnitToDelete(null);
+      await loadData();
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete unit'));
+    } finally {
+      setIsDeletingUnit(false);
+    }
+  };
 
   const [unitFormData, setUnitFormData] = useState({
     unitNumber: '',
@@ -271,24 +289,46 @@ export default function PropertyDetailsPage({
               </div>
 
               {/* Status change actions */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-[11px] font-semibold text-slate-400">Change status:</span>
-                <select
-                  value={unit.status}
-                  onChange={(e) => handleStatusChange(unit.id, e.target.value as UnitStatus)}
-                  className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400">Status:</span>
+                  <select
+                    value={unit.status}
+                    onChange={(e) => handleStatusChange(unit.id, e.target.value as UnitStatus)}
+                    className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="AVAILABLE">AVAILABLE</option>
+                    <option value="OCCUPIED">OCCUPIED</option>
+                    <option value="RESERVED">RESERVED</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="DISABLED">DISABLED</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUnitToDelete(unit)}
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete unit"
                 >
-                  <option value="AVAILABLE">AVAILABLE</option>
-                  <option value="OCCUPIED">OCCUPIED</option>
-                  <option value="RESERVED">RESERVED</option>
-                  <option value="MAINTENANCE">MAINTENANCE</option>
-                  <option value="DISABLED">DISABLED</option>
-                </select>
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Delete Unit Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!unitToDelete}
+        onClose={() => setUnitToDelete(null)}
+        onConfirm={handleDeleteUnit}
+        title="Delete Unit"
+        description={`Are you sure you want to delete Unit ${unitToDelete?.unitNumber || ''}? This action cannot be undone.`}
+        warning="Deleting a unit will permanently remove its record from inventory."
+        confirmText="Delete Unit"
+        isLoading={isDeletingUnit}
+      />
 
       {/* Add Unit Modal */}
       <Modal

@@ -10,6 +10,8 @@ import { tenantApi, Tenant } from '@/lib/api/tenantApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 
@@ -131,6 +133,31 @@ export default function LeasesPage() {
     }
   };
 
+  const [leaseToConfirm, setLeaseToConfirm] = useState<{ id: string; targetStatus: LeaseStatus } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const confirmStatusTransition = async () => {
+    if (!leaseToConfirm || !user?.organizationId) return;
+    setIsTransitioning(true);
+    try {
+      await leaseApi.updateLeaseStatus(leaseToConfirm.id, leaseToConfirm.targetStatus);
+      setLeaseToConfirm(null);
+      await loadData();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Invalid state transition.'));
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
+
+  const isExpiringSoon = (lease: Lease) => {
+    if (lease.status !== 'ACTIVE' || !lease.endDate) return false;
+    const end = new Date(lease.endDate).getTime();
+    const now = Date.now();
+    const diffDays = (end - now) / (1000 * 3600 * 24);
+    return diffDays >= 0 && diffDays <= 30;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -146,7 +173,7 @@ export default function LeasesPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading agreements...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : leases.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
           <FileText className="w-12 h-12 text-slate-400 mx-auto" />
@@ -169,6 +196,9 @@ export default function LeasesPage() {
                 <div className="flex items-center gap-3">
                   <h3 className="font-bold text-slate-900 text-base">Lease #{lease.id.substring(0, 8)}</h3>
                   {getStatusBadge(lease.status)}
+                  {isExpiringSoon(lease) && (
+                    <Badge variant="warning">Expires Soon ({lease.endDate})</Badge>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-600 font-medium">
@@ -189,7 +219,7 @@ export default function LeasesPage() {
                     <Button size="sm" variant="primary" onClick={() => handleStatusTransition(lease.id, 'ACTIVE')}>
                       Activate Lease
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleStatusTransition(lease.id, 'CANCELLED')}>
+                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setLeaseToConfirm({ id: lease.id, targetStatus: 'CANCELLED' })}>
                       Cancel
                     </Button>
                   </>
@@ -200,14 +230,14 @@ export default function LeasesPage() {
                     <Button size="sm" variant="primary" onClick={() => handleStatusTransition(lease.id, 'ACTIVE')}>
                       Mark E-Signed & Activate
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleStatusTransition(lease.id, 'CANCELLED')}>
+                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setLeaseToConfirm({ id: lease.id, targetStatus: 'CANCELLED' })}>
                       Cancel
                     </Button>
                   </>
                 )}
 
                 {lease.status === 'ACTIVE' && (
-                  <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" onClick={() => handleStatusTransition(lease.id, 'TERMINATED')}>
+                  <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" onClick={() => setLeaseToConfirm({ id: lease.id, targetStatus: 'TERMINATED' })}>
                     Terminate Lease
                   </Button>
                 )}
@@ -220,6 +250,18 @@ export default function LeasesPage() {
           ))}
         </div>
       )}
+
+      {/* Confirm Lease Termination / Cancellation Modal */}
+      <ConfirmModal
+        isOpen={!!leaseToConfirm}
+        onClose={() => setLeaseToConfirm(null)}
+        onConfirm={confirmStatusTransition}
+        title={leaseToConfirm?.targetStatus === 'TERMINATED' ? 'Terminate Lease Agreement' : 'Cancel Lease Agreement'}
+        description={`Are you sure you want to ${leaseToConfirm?.targetStatus === 'TERMINATED' ? 'terminate' : 'cancel'} Lease #${leaseToConfirm?.id.substring(0, 8) || ''}?`}
+        warning="This action will release the assigned unit back to AVAILABLE status for new bookings."
+        confirmText={leaseToConfirm?.targetStatus === 'TERMINATED' ? 'Terminate Lease' : 'Cancel Lease'}
+        isLoading={isTransitioning}
+      />
 
       {/* Create Lease Modal */}
       <Modal

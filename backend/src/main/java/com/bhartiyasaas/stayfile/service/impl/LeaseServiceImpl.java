@@ -236,4 +236,46 @@ public class LeaseServiceImpl implements LeaseService {
             }
         }
     }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void processExpiringLeasesScheduled() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        List<Lease> activeLeases = leaseRepository.findAll().stream()
+                .filter(l -> l.getStatus() == LeaseStatus.ACTIVE)
+                .toList();
+
+        for (Lease lease : activeLeases) {
+            if (lease.getEndDate() != null && !lease.getEndDate().isAfter(today)) {
+                updateLeaseStatusDirect(lease, LeaseStatus.EXPIRED);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LeaseResponse> getExpiringLeases(SecurityUser currentUser, int days) {
+        UUID organizationId = currentUser.getOrganizationId();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate threshold = today.plusDays(days > 0 ? days : 30);
+
+        List<Lease> leases = leaseRepository.findByOrganizationIdAndStatus(organizationId, LeaseStatus.ACTIVE).stream()
+                .filter(l -> l.getEndDate() != null && !l.getEndDate().isBefore(today) && !l.getEndDate().isAfter(threshold))
+                .toList();
+
+        return leaseMapper.toResponseList(leases);
+    }
+
+    private void updateLeaseStatusDirect(Lease lease, LeaseStatus targetStatus) {
+        lease.setStatus(targetStatus);
+        Unit unit = lease.getUnit();
+        if (targetStatus == LeaseStatus.EXPIRED || targetStatus == LeaseStatus.TERMINATED || targetStatus == LeaseStatus.CANCELLED) {
+            if (unit.getCurrentLease() != null && unit.getCurrentLease().getId().equals(lease.getId())) {
+                unit.setCurrentLease(null);
+                unit.setStatus(UnitStatus.AVAILABLE);
+                unitRepository.save(unit);
+            }
+        }
+        leaseRepository.save(lease);
+    }
 }

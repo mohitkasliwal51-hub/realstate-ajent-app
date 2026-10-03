@@ -12,6 +12,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 
+import { FileUpload } from '@/components/ui/FileUpload';
+import { validatePincode } from '@/lib/validation';
+
 export default function PropertiesPage() {
   const { user } = useAuth();
   const brokerMode = isBrokerMode(user);
@@ -33,6 +36,7 @@ export default function PropertiesPage() {
     pincode: '',
     landmark: '',
     description: '',
+    images: [] as string[],
   });
 
   const loadProperties = async () => {
@@ -63,11 +67,16 @@ export default function PropertiesPage() {
       alert('BROKERAGE mode requires selecting a property landlord.');
       return;
     }
+    if (formData.pincode && !validatePincode(formData.pincode)) {
+      alert('Invalid 6-digit Indian PIN Code format.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await propertyApi.createProperty({
         ...formData,
         landlordId: formData.landlordId || undefined,
+        images: formData.images.length > 0 ? formData.images : undefined,
       });
       setIsModalOpen(false);
       setFormData({
@@ -80,6 +89,7 @@ export default function PropertiesPage() {
         pincode: '',
         landmark: '',
         description: '',
+        images: [],
       });
       await loadProperties();
     } catch (err) {
@@ -276,6 +286,28 @@ export default function PropertiesPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
+
+          <FileUpload
+            category="PROPERTY_IMAGE"
+            label="Property Gallery Photo"
+            onChange={(url) => url && setFormData((prev) => ({ ...prev, images: [...prev.images, url] }))}
+          />
+          {formData.images.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {formData.images.map((imgUrl, idx) => (
+                <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-slate-200">
+                  <img src={imgUrl} alt="Property" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
+                    className="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>

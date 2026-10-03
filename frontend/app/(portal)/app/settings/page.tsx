@@ -8,6 +8,7 @@ import { OrganizationType } from '@/lib/auth/authTypes';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
+import { validatePan, validateGstin, validateIfsc } from '@/lib/validation';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -64,6 +65,20 @@ export default function SettingsPage() {
   const handleSaveBranding = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.organizationId) return;
+
+    if (branding.ownerPan && !validatePan(branding.ownerPan)) {
+      alert('Invalid PAN card number format. Example: ABCDE1234F');
+      return;
+    }
+    if (branding.ownerGstin && !validateGstin(branding.ownerGstin)) {
+      alert('Invalid GSTIN number format. Example: 29ABCDE1234F1Z5');
+      return;
+    }
+    if (branding.bankIfscCode && !validateIfsc(branding.bankIfscCode)) {
+      alert('Invalid IFSC Code format. Example: SBIN0001234');
+      return;
+    }
+
     setIsSavingBranding(true);
     setSuccessMessage(null);
     try {

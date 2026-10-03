@@ -15,4 +15,5 @@ public interface LeaseService {
     List<LeaseResponse> getLeasesByOrganization(SecurityUser currentUser);
     byte[] getLeasePdf(UUID leaseId, SecurityUser currentUser);
     LeaseResponse updateLeaseStatus(UUID leaseId, SecurityUser currentUser, LeaseStatus targetStatus);
+    List<LeaseResponse> getExpiringLeases(SecurityUser currentUser, int days);
 }

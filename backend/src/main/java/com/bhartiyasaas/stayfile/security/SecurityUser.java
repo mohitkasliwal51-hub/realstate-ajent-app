@@ -39,6 +39,14 @@ public class SecurityUser implements UserDetails {
         return profile.getId();
     }
 
+    public UUID getId() {
+        return profile.getId();
+    }
+
+    public com.bhartiyasaas.stayfile.entity.enums.UserRole getRole() {
+        return profile.getRole();
+    }
+
     public UUID getOrganizationId() {
         return profile.getOrganizationId();
     }
