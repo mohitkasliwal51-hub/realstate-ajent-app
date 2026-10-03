@@ -1,27 +1,40 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bhartiyasaas.stayfile.dto.request.LeaseCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.LeaseResponse;
-import com.bhartiyasaas.stayfile.entity.*;
+import com.bhartiyasaas.stayfile.entity.AgreementTemplate;
+import com.bhartiyasaas.stayfile.entity.Landlord;
+import com.bhartiyasaas.stayfile.entity.Lease;
+import com.bhartiyasaas.stayfile.entity.Organization;
+import com.bhartiyasaas.stayfile.entity.Profile;
+import com.bhartiyasaas.stayfile.entity.Tenant;
+import com.bhartiyasaas.stayfile.entity.Unit;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 import com.bhartiyasaas.stayfile.entity.enums.UnitStatus;
 import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.exception.UnauthorizedException;
 import com.bhartiyasaas.stayfile.mapper.LeaseMapper;
-import com.bhartiyasaas.stayfile.repository.*;
+import com.bhartiyasaas.stayfile.repository.AgreementTemplateRepository;
+import com.bhartiyasaas.stayfile.repository.LandlordRepository;
+import com.bhartiyasaas.stayfile.repository.LeaseRepository;
+import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
+import com.bhartiyasaas.stayfile.repository.ProfileRepository;
+import com.bhartiyasaas.stayfile.repository.TenantRepository;
+import com.bhartiyasaas.stayfile.repository.UnitRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.LeaseService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -70,9 +83,8 @@ public class LeaseServiceImpl implements LeaseService {
                     .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
         }
 
-        UUID creatorId = request.getCreatedById() != null ? request.getCreatedById() : currentUser.getProfileId();
-        Profile createdBy = profileRepository.findById(creatorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Creator profile not found with ID: " + creatorId));
+        Profile createdBy = profileRepository.findByOrganizationIdAndId(organizationId, currentUser.getProfileId())
+            .orElseThrow(() -> new ResourceNotFoundException("Creator profile not found"));
 
         // Rule 1: Prevent leasing occupied, maintenance or disabled units
         if (unit.getStatus() == UnitStatus.OCCUPIED || unit.getStatus() == UnitStatus.MAINTENANCE || unit.getStatus() == UnitStatus.DISABLED) {

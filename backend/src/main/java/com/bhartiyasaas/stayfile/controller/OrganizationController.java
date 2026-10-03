@@ -1,11 +1,16 @@
 package com.bhartiyasaas.stayfile.controller;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.PropertyResponse;
@@ -18,8 +23,9 @@ import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyService;
 
-import java.util.List;
-import java.util.UUID;
+import lombok.Builder;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -38,7 +44,7 @@ public class OrganizationController {
         private String name;
         private String slug;
         private Boolean isActive;
-        private BrandingSettings branding;
+        private ShowcaseBrandingResponse branding;
     }
 
     @Data
@@ -63,7 +69,7 @@ public class OrganizationController {
                 .name(org.getName())
                 .slug(org.getSlug())
                 .isActive(org.getIsActive())
-                .branding(branding)
+                .branding(toPublicBranding(branding))
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -71,7 +77,7 @@ public class OrganizationController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @PutMapping("/organizations/{id}/branding")
-    public ResponseEntity<ApiResponse<BrandingSettings>> updateBranding(
+        public ResponseEntity<ApiResponse<ShowcaseBrandingResponse>> updateBranding(
             @PathVariable UUID id,
             @RequestBody BrandingSettings brandingPayload) {
         tenantAccessService.validateUserOrganization(id);
@@ -94,7 +100,7 @@ public class OrganizationController {
         if (brandingPayload.getReraNumber() != null) branding.setReraNumber(brandingPayload.getReraNumber());
 
         BrandingSettings saved = brandingSettingsRepository.save(branding);
-        return ResponseEntity.ok(ApiResponse.success(saved, "Branding settings updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(toPublicBranding(saved), "Branding settings updated successfully"));
     }
 
     @GetMapping("/showcase/{organizationSlug}")
@@ -124,5 +130,21 @@ public class OrganizationController {
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(showcase, "Showcase data retrieved successfully"));
-    }
+        }
+
+        private ShowcaseBrandingResponse toPublicBranding(BrandingSettings branding) {
+                if (branding == null) {
+                        return null;
+                }
+                return ShowcaseBrandingResponse.builder()
+                                .legalBusinessName(branding.getLegalBusinessName())
+                                .tradeName(branding.getTradeName())
+                                .ownerGstin(branding.getOwnerGstin())
+                                .contactPhone(branding.getContactPhone())
+                                .contactEmail(branding.getContactEmail())
+                                .agencyLogoUrl(branding.getAgencyLogoUrl())
+                                .primaryColor(branding.getPrimaryColor())
+                                .secondaryColor(branding.getSecondaryColor())
+                                .build();
+        }
 }

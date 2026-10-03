@@ -1,6 +1,8 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,8 +23,7 @@ import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PropertyLeadService;
 
-import java.util.List;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +43,9 @@ public class PropertyLeadServiceImpl implements PropertyLeadService {
 
         Property property = null;
         if (request.getPropertyId() != null) {
-            property = propertyRepository.findById(request.getPropertyId()).orElse(null);
+            property = organizationId == null
+                    ? propertyRepository.findById(request.getPropertyId()).orElse(null)
+                    : propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), organizationId).orElse(null);
             if (property != null && organizationId == null) {
                 organizationId = property.getOrganization().getId();
             }
@@ -50,14 +53,22 @@ public class PropertyLeadServiceImpl implements PropertyLeadService {
 
         Unit unit = null;
         if (request.getUnitId() != null) {
-            unit = unitRepository.findById(request.getUnitId()).orElse(null);
+            unit = organizationId == null
+                    ? unitRepository.findById(request.getUnitId()).orElse(null)
+                    : unitRepository.findByIdAndOrganizationId(request.getUnitId(), organizationId).orElse(null);
             if (unit != null && organizationId == null) {
                 organizationId = unit.getOrganization().getId();
             }
         }
 
-        if (organizationId == null) {
+        if (property == null || organizationId == null) {
             throw new ResourceNotFoundException("Target organization could not be determined for lead inquiry");
+        }
+        if (!Boolean.TRUE.equals(property.getIsActive())) {
+            throw new ResourceNotFoundException("Property is not publicly available");
+        }
+        if (unit != null && !unit.getProperty().getId().equals(property.getId())) {
+            throw new ResourceNotFoundException("Unit does not belong to the selected property");
         }
 
         Organization org = organizationRepository.findById(organizationId)

@@ -2,7 +2,6 @@ package com.bhartiyasaas.stayfile.dto.request;
 
 import com.bhartiyasaas.stayfile.entity.enums.LeadSource;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

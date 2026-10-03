@@ -13,5 +13,6 @@ import java.util.UUID;
 public interface PropertyRepository extends JpaRepository<Property, UUID> {
     List<Property> findByOrganizationId(UUID organizationId);
     List<Property> findByOrganizationIdAndIsActiveTrue(UUID organizationId);
+    List<Property> findByIsActiveTrue();
     Optional<Property> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

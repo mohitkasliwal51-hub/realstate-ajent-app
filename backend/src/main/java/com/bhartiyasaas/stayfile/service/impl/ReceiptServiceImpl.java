@@ -1,25 +1,32 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bhartiyasaas.stayfile.dto.request.ReceiptCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ReceiptResponse;
-import com.bhartiyasaas.stayfile.entity.*;
+import com.bhartiyasaas.stayfile.entity.Invoice;
+import com.bhartiyasaas.stayfile.entity.Lease;
+import com.bhartiyasaas.stayfile.entity.Organization;
+import com.bhartiyasaas.stayfile.entity.Receipt;
+import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.ReceiptMapper;
-import com.bhartiyasaas.stayfile.repository.*;
-import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.repository.InvoiceRepository;
+import com.bhartiyasaas.stayfile.repository.LeaseRepository;
+import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
+import com.bhartiyasaas.stayfile.repository.ReceiptRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
 import com.bhartiyasaas.stayfile.service.ReceiptService;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -41,12 +48,9 @@ public class ReceiptServiceImpl implements ReceiptService {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
 
-        Lease lease = leaseRepository.findById(request.getLeaseId())
+        Lease lease = leaseRepository.findByIdAndOrganizationId(request.getLeaseId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + request.getLeaseId()));
 
-        if (lease.getOrganization() == null || !lease.getOrganization().getId().equals(organization.getId())) {
-            throw new IllegalArgumentException("Lease does not belong to your Organization");
-        }
         if (lease.getStatus() != LeaseStatus.ACTIVE) {
             throw new IllegalStateException("Receipts can only be issued for active leases");
         }

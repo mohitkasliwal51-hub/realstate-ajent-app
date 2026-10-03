@@ -231,6 +231,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_profiles_organization_email
     ON public.profiles (organization_id, email);
 
+CREATE UNIQUE INDEX IF NOT EXISTS uk_profiles_email_global
+    ON public.profiles (email);
+
 -- Custom Branding & Default Organization Payout Settings
 CREATE TABLE IF NOT EXISTS public.branding_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,7 +1,7 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +17,8 @@ import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.repository.WhatsappLogRepository;
 import com.bhartiyasaas.stayfile.service.WhatsappService;
 
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -36,7 +37,7 @@ public class WhatsappServiceImpl implements WhatsappService {
 
         Tenant tenant = null;
         if (tenantId != null) {
-            tenant = tenantRepository.findById(tenantId).orElse(null);
+            tenant = tenantRepository.findByIdAndOrganizationId(tenantId, organizationId).orElse(null);
         }
 
         log.info("Simulating Meta WhatsApp Cloud API template message '{}' to {}", templateName, recipientPhone);

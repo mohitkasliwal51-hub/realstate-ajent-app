@@ -47,6 +47,7 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
 
         Tenant tenant = tenantRepository.findByIdAndOrganizationId(request.getTenantId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
+        tenantAccessService.validateTenantOwnership(tenant, "maintenance ticket");
 
         MaintenanceTicket ticket = ticketMapper.toEntity(request);
         ticket.setOrganization(organization);
@@ -70,6 +71,9 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
     @Transactional(readOnly = true)
     public List<MaintenanceTicketResponse> getTicketsByTenant(UUID tenantId, SecurityUser currentUser) {
         UUID organizationId = currentUser.getOrganizationId();
+        Tenant tenant = tenantRepository.findByIdAndOrganizationId(tenantId, organizationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
+        tenantAccessService.validateTenantOwnership(tenant, "maintenance tickets");
         List<MaintenanceTicket> tickets = ticketRepository.findByTenantIdAndOrganizationId(tenantId, organizationId);
         return ticketMapper.toResponseList(tickets);
     }
