@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Lock, Mail } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { apiClient } from '@/lib/api/client';
+import { authApi } from '@/lib/api/authApi';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -31,11 +31,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const response = await apiClient.post('/api/v1/auth/login', {
-        email,
-        password,
-      });
-      const data = response.data.data;
+      const data = await authApi.login({ email, password });
       login(data.token, data.user);
       router.push('/app');
     } catch (err: unknown) {

@@ -11,6 +11,7 @@ import com.bhartiyasaas.stayfile.dto.response.TenantResponse;
 public interface TenantService {
     TenantResponse createTenant(TenantCreateRequest request, SecurityUser currentUser);
     TenantResponse getTenantById(UUID id, SecurityUser currentUser);
+    TenantResponse getTenantForCurrentUser(SecurityUser currentUser);
     List<TenantResponse> getTenantsByOrganization(SecurityUser currentUser);
     TenantResponse verifyTenantKyc(UUID id, SecurityUser currentUser, VerificationStatus status);
 }

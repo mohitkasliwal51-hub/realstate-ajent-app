@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Building2, Plus, MapPin, ArrowRight, Layers } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { propertyApi, Property, PropertyType } from '@/lib/api/propertyApi';
+import { landlordApi, Landlord } from '@/lib/api/landlordApi';
+import { isBrokerMode, isLandlordRequired } from '@/lib/orgMode';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -12,12 +14,17 @@ import { Input } from '@/components/ui/Input';
 
 export default function PropertiesPage() {
   const { user } = useAuth();
+  const brokerMode = isBrokerMode(user);
+  const landlordRequired = isLandlordRequired(user);
+
   const [properties, setProperties] = useState<Property[]>([]);
+  const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
+    landlordId: '',
     name: '',
     type: 'PG' as PropertyType,
     address: '',
@@ -32,8 +39,12 @@ export default function PropertiesPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const data = await propertyApi.getProperties(user.organizationId);
-      setProperties(data || []);
+      const [propsData, landlordsData] = await Promise.all([
+        propertyApi.getProperties(),
+        brokerMode ? landlordApi.getLandlords().catch(() => []) : Promise.resolve([]),
+      ]);
+      setProperties(propsData || []);
+      setLandlords(landlordsData || []);
     } catch (err) {
       console.error('Failed to load properties', err);
     } finally {
@@ -47,16 +58,20 @@ export default function PropertiesPage() {
 
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.organizationId || !user?.id) return;
+    if (!user?.organizationId) return;
+    if (landlordRequired && !formData.landlordId) {
+      alert('BROKERAGE mode requires selecting a property landlord.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await propertyApi.createProperty({
-        organizationId: user.organizationId,
-        ownerId: user.id,
         ...formData,
+        landlordId: formData.landlordId || undefined,
       });
       setIsModalOpen(false);
       setFormData({
+        landlordId: '',
         name: '',
         type: 'PG',
         address: '',
@@ -165,6 +180,25 @@ export default function PropertiesPage() {
         description="Enter property location and type details"
       >
         <form onSubmit={handleCreateProperty} className="space-y-4">
+          {brokerMode && (
+            <div className="w-full flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Property Owner / Landlord {landlordRequired ? '*' : '(Optional for Self-Owned)'}
+              </label>
+              <select
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.landlordId}
+                onChange={(e) => setFormData({ ...formData, landlordId: e.target.value })}
+                required={landlordRequired}
+              >
+                <option value="">{landlordRequired ? 'Select landlord...' : 'Self-Owned (Direct Org Property)'}</option>
+                {landlords.map((l) => (
+                  <option key={l.id} value={l.id}>{l.legalName} ({l.phone})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <Input
             label="Property Name"
             placeholder="e.g. Green Park Residency"

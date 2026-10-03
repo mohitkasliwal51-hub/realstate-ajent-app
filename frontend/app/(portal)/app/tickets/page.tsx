@@ -16,7 +16,7 @@ export default function TicketsPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const data = await ticketApi.getTicketsByOrganization(user.organizationId);
+      const data = await ticketApi.getTicketsByOrganization();
       setTickets(data || []);
     } catch (err) {
       console.error('Failed to load tickets', err);
@@ -32,7 +32,7 @@ export default function TicketsPage() {
   const handleStatusChange = async (ticketId: string, status: string) => {
     if (!user?.organizationId) return;
     try {
-      await ticketApi.updateTicketStatus(ticketId, user.organizationId, status);
+      await ticketApi.updateTicketStatus(ticketId, status as any);
       await loadTickets();
     } catch (err) {
       alert('Failed to update ticket status');

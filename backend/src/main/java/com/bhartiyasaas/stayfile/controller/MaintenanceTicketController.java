@@ -13,6 +13,7 @@ import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.dto.request.MaintenanceTicketCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.MaintenanceTicketResponse;
+import com.bhartiyasaas.stayfile.entity.enums.TicketStatus;
 import com.bhartiyasaas.stayfile.service.MaintenanceTicketService;
 
 import java.util.List;
@@ -57,7 +58,7 @@ public class MaintenanceTicketController {
     public ResponseEntity<ApiResponse<MaintenanceTicketResponse>> updateTicketStatus(
             @PathVariable UUID id,
             @AuthenticationPrincipal SecurityUser currentUser,
-            @RequestParam String status) {
+            @RequestParam TicketStatus status) {
         MaintenanceTicketResponse response = ticketService.updateTicketStatus(id, currentUser, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Ticket status updated to " + status));
     }

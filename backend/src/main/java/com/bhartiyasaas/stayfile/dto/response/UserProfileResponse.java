@@ -30,5 +30,9 @@ public class UserProfileResponse {
 
     private String organizationSlug;
 
+    private com.bhartiyasaas.stayfile.entity.enums.OrganizationType organizationType;
+
+    private UUID tenantId;
+
     private Boolean isActive;
 }

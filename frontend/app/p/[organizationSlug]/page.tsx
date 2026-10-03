@@ -60,8 +60,7 @@ export default function PublicShowcasePage({
     setIsSubmitting(true);
     try {
       await leadApi.createLead({
-        organizationId: showcase.properties[0]?.organizationId || '00000000-0000-0000-0000-000000000000',
-        propertyId: selectedProperty?.id,
+        propertyId: selectedProperty?.id || '',
         name: inquiryData.name,
         phone: inquiryData.phone,
         email: inquiryData.email,

@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
     List<Receipt> findByOrganizationId(UUID organizationId);
     Optional<Receipt> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    List<Receipt> findByTenantId(UUID tenantId);
     Optional<Receipt> findByOrganizationIdAndReceiptNumber(UUID organizationId, String receiptNumber);
     Optional<Receipt> findTopByOrganizationIdAndReceiptNumberStartingWithOrderByReceiptNumberDesc(
             UUID organizationId, String prefix);

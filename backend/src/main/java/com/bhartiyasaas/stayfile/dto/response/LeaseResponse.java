@@ -47,6 +47,7 @@ public class LeaseResponse {
     private String agreementPdfUrl;
     private Boolean isEsignCompleted;
     private String esignTransactionId;
+    @com.fasterxml.jackson.annotation.JsonProperty("eStampNumber")
     private String eStampNumber;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

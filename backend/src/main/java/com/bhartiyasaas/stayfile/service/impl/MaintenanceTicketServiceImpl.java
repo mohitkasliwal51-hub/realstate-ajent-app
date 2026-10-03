@@ -10,6 +10,9 @@ import com.bhartiyasaas.stayfile.entity.MaintenanceTicket;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Tenant;
 import com.bhartiyasaas.stayfile.entity.Unit;
+import com.bhartiyasaas.stayfile.entity.enums.TicketCategory;
+import com.bhartiyasaas.stayfile.entity.enums.TicketPriority;
+import com.bhartiyasaas.stayfile.entity.enums.TicketStatus;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.MaintenanceTicketMapper;
 import com.bhartiyasaas.stayfile.repository.MaintenanceTicketRepository;
@@ -53,7 +56,9 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
         ticket.setOrganization(organization);
         ticket.setUnit(unit);
         ticket.setTenant(tenant);
-        ticket.setStatus("OPEN");
+        ticket.setStatus(TicketStatus.OPEN);
+        if (ticket.getCategory() == null) ticket.setCategory(TicketCategory.PLUMBING);
+        if (ticket.getPriority() == null) ticket.setPriority(TicketPriority.MEDIUM);
 
         MaintenanceTicket saved = ticketRepository.save(ticket);
         return ticketMapper.toResponse(saved);
@@ -80,7 +85,7 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
 
     @Override
     @Transactional
-    public MaintenanceTicketResponse updateTicketStatus(UUID ticketId, SecurityUser currentUser, String status) {
+    public MaintenanceTicketResponse updateTicketStatus(UUID ticketId, SecurityUser currentUser, TicketStatus status) {
         UUID organizationId = currentUser.getOrganizationId();
         MaintenanceTicket ticket = ticketRepository.findByIdAndOrganizationId(ticketId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));

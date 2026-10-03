@@ -13,4 +13,5 @@ public interface LandlordRepository extends JpaRepository<Landlord, UUID> {
     List<Landlord> findByManagingOrganizationId(UUID organizationId);
     List<Landlord> findByManagingOrganizationIdAndIsActiveTrue(UUID organizationId);
     Optional<Landlord> findByIdAndManagingOrganizationId(UUID id, UUID organizationId);
+    long countByManagingOrganizationId(UUID organizationId);
 }

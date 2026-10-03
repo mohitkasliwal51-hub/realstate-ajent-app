@@ -15,7 +15,7 @@ export default function LeadsPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const data = await leadApi.getLeadsByOrganization(user.organizationId);
+      const data = await leadApi.getLeadsByOrganization();
       setLeads(data || []);
     } catch (err) {
       console.error('Failed to load leads', err);
@@ -31,7 +31,7 @@ export default function LeadsPage() {
   const handleStatusChange = async (leadId: string, status: LeadStatus) => {
     if (!user?.organizationId) return;
     try {
-      await leadApi.updateLeadStatus(leadId, user.organizationId, status);
+      await leadApi.updateLeadStatus(leadId, status);
       await loadLeads();
     } catch (err) {
       alert('Failed to update lead status');

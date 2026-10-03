@@ -10,6 +10,7 @@ import java.util.UUID;
 public interface ReceiptService {
     ReceiptResponse createReceipt(ReceiptCreateRequest request, SecurityUser currentUser);
     ReceiptResponse getReceiptById(UUID id, SecurityUser currentUser);
+    List<ReceiptResponse> getReceiptsForCurrentUser(SecurityUser currentUser);
     List<ReceiptResponse> getReceiptsByOrganization(SecurityUser currentUser);
     byte[] getReceiptPdf(UUID receiptId, SecurityUser currentUser);
 }

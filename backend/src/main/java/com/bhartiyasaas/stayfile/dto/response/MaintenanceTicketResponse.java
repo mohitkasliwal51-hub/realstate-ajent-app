@@ -1,5 +1,8 @@
 package com.bhartiyasaas.stayfile.dto.response;
 
+import com.bhartiyasaas.stayfile.entity.enums.TicketCategory;
+import com.bhartiyasaas.stayfile.entity.enums.TicketPriority;
+import com.bhartiyasaas.stayfile.entity.enums.TicketStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,9 +26,9 @@ public class MaintenanceTicketResponse {
     private UUID assignedToId;
     private String title;
     private String description;
-    private String category;
-    private String priority;
-    private String status;
+    private TicketCategory category;
+    private TicketPriority priority;
+    private TicketStatus status;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

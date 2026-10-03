@@ -2,7 +2,7 @@
 
 This document describes the schema implemented by
 [`database/init-scripts/01-init.sql`](init-scripts/01-init.sql). The SQL script is
-the source of truth. This model contains 21 tables and 22 PostgreSQL enum types.
+the source of truth. This model contains 21 tables and 25 PostgreSQL enum types.
 
 ## Database Conventions
 
@@ -18,6 +18,11 @@ the source of truth. This model contains 21 tables and 22 PostgreSQL enum types.
 - The initialization script is intended for a fresh database. It is not a
   versioned, rerunnable migration because enum, trigger, policy, and constraint
   statements are not all guarded with existence checks.
+- There is no migration tool (Flyway/Liquibase) and Hibernate runs with
+  `ddl-auto=none`. Docker only runs `init-scripts/` when the data volume is first
+  created. After editing the init script on a dev machine, recreate the volume:
+  `docker compose down -v && docker compose up -d`. Once real data exists, add
+  idempotent scripts under `database/migrations/` instead.
 
 ## Enum Types
 
@@ -45,6 +50,9 @@ the source of truth. This model contains 21 tables and 22 PostgreSQL enum types.
 | `bbps_status` | `PENDING`, `SUCCESS`, `FAILED` |
 | `lead_source` | `WHATSAPP`, `WEBSITE`, `NINETYNINE_ACRES`, `NOBROKER`, `MAGICBRICKS`, `DIRECT` |
 | `lead_status` | `NEW`, `CONTACTED`, `VISITED`, `CONVERTED`, `LOST` |
+| `ticket_status` | `OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED` |
+| `ticket_priority` | `LOW`, `MEDIUM`, `HIGH`, `URGENT` |
+| `ticket_category` | `PLUMBING`, `ELECTRICAL`, `APPLIANCE`, `CARPENTRY`, `CLEANING`, `PEST_CONTROL`, `INTERNET`, `OTHER` |
 
 ## Core Organization Tables
 
@@ -118,7 +126,8 @@ Columns: `id`, `organization_id`, `user_id`, `full_name`, `email`, `phone`,
 `created_at`, `updated_at`.
 
 The encrypted identity value is stored in `id_proof_number`. `(id,
-organization_id)` is unique.
+organization_id)` is unique. `user_id` is unique when present (one tenant
+record per tenant login), which powers tenant self-service lookups.
 
 ### `agreement_templates`
 
@@ -241,7 +250,10 @@ Columns: `id`, `organization_id`, `unit_id`, `tenant_id`, `assigned_to`, `title`
 `description`, `category`, `priority`, `status`, `images`, `created_at`,
 `updated_at`.
 
-Unit, tenant, and optional assigned profile references are organization-scoped.
+`category`, `priority` and `status` use the `ticket_category`,
+`ticket_priority` and `ticket_status` enums (defaults `PLUMBING`, `MEDIUM`,
+`OPEN`). Unit, tenant, and optional assigned profile references are
+organization-scoped.
 
 ### `integration_logs`
 
@@ -282,8 +294,10 @@ An after-insert/update/delete trigger on `receipts`:
 - One active lease per unit.
 - One `MONTHLY_RENT` invoice per lease and billing-period start.
 - Unique tenant phone per organization.
+- Unique tenant `user_id` (partial index, ignores NULL).
 - Organization/status and tenant/status lookup indexes for leases and invoices.
-- Unit, meter, receipt, payout, WhatsApp, lead, and integration lookup indexes.
+- Unit, meter, receipt, payout, WhatsApp, lead, ticket, and integration lookup
+  indexes.
 - Overdue lookup index for invoices with status `UNPAID` or `PARTIAL`.
 
 ## Row-Level Security
@@ -315,3 +329,32 @@ The schema supports:
 
 The tables record BBPS, e-sign, KYC, and WhatsApp integration state; external
 provider API execution remains an application/integration responsibility.
+
+## Owner / Broker / Hybrid Model
+
+The same tables serve all three organization types. The key is
+`properties.landlord_id`:
+
+| Property kind | `landlord_id` | Lessor & bank details come from |
+| --- | --- | --- |
+| Self-owned | `NULL` | `branding_settings` (legal name, PAN, GSTIN, bank, UPI) |
+| Managed (on behalf of a landlord) | set | `landlords` row |
+
+`organizations.organization_type` decides which kinds of property are allowed:
+
+| Organization type | Self-owned | Managed |
+| --- | --- | --- |
+| `OWNER` | yes (only) | no |
+| `BROKERAGE` | no | yes (only, landlord required) |
+| `HYBRID` | yes | yes (per property) |
+
+Derived rules (enforced by the backend `OrganizationPolicyService`, not by SQL,
+because they span tables):
+
+- Landlord management and landlord payouts are not available to `OWNER`
+  organizations.
+- A lease's `landlord_id` always equals its property's `landlord_id`.
+- Brokerage fees (`brokerage_fee_type <> 'NONE'`), brokerage/commission invoice
+  lines and `BROKERAGE_FEE` receipts are only allowed on managed properties.
+- Changing `organization_type` is validated against existing data (e.g. an org
+  with managed properties cannot become `OWNER`).

@@ -57,8 +57,8 @@ export default function PropertyDetailsPage({
     setIsLoading(true);
     try {
       const [prop, unitList] = await Promise.all([
-        propertyApi.getPropertyById(propertyId, user.organizationId),
-        unitApi.getUnitsByProperty(propertyId, user.organizationId),
+        propertyApi.getPropertyById(propertyId),
+        unitApi.getUnitsByProperty(propertyId),
       ]);
       setProperty(prop);
       setUnits(unitList || []);
@@ -79,7 +79,6 @@ export default function PropertyDetailsPage({
     setIsSubmitting(true);
     try {
       await unitApi.createUnit({
-        organizationId: user.organizationId,
         propertyId,
         ...unitFormData,
       });
@@ -105,7 +104,7 @@ export default function PropertyDetailsPage({
   const handleStatusChange = async (unitId: string, newStatus: UnitStatus) => {
     if (!user?.organizationId) return;
     try {
-      await unitApi.updateUnitStatus(unitId, user.organizationId, newStatus);
+      await unitApi.updateUnitStatus(unitId, newStatus);
       await loadData();
     } catch (err) {
       alert('Failed to update status.');

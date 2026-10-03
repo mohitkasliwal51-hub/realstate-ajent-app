@@ -1,5 +1,7 @@
 package com.bhartiyasaas.stayfile.dto.request;
 
+import com.bhartiyasaas.stayfile.entity.enums.TicketCategory;
+import com.bhartiyasaas.stayfile.entity.enums.TicketPriority;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -27,8 +29,8 @@ public class MaintenanceTicketCreateRequest {
     private String description;
 
     @Builder.Default
-    private String category = "PLUMBING";
+    private TicketCategory category = TicketCategory.PLUMBING;
 
     @Builder.Default
-    private String priority = "MEDIUM";
+    private TicketPriority priority = TicketPriority.MEDIUM;
 }

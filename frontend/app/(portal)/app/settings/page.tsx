@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Settings, Save, Building, ShieldCheck } from 'lucide-react';
+import { Settings, Save, Building, ShieldCheck, Banknote, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { orgApi, BrandingSettings } from '@/lib/api/orgApi';
+import { orgApi, FullBrandingSettings } from '@/lib/api/orgApi';
+import { OrganizationType } from '@/lib/auth/authTypes';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [branding, setBranding] = useState<BrandingSettings>({
+  const [orgType, setOrgType] = useState<OrganizationType>('HYBRID');
+  const [branding, setBranding] = useState<FullBrandingSettings>({
     legalBusinessName: '',
     tradeName: '',
     ownerPan: '',
@@ -20,9 +23,16 @@ export default function SettingsPage() {
     contactEmail: '',
     primaryColor: '#2563eb',
     secondaryColor: '#1e293b',
+    ownerUpiId: '',
+    bankAccountNumber: '',
+    bankIfscCode: '',
+    bankName: '',
+    accountHolderName: '',
   });
+
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+  const [isUpdatingType, setIsUpdatingType] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,11 +40,17 @@ export default function SettingsPage() {
     const fetchOrg = async () => {
       setIsLoading(true);
       try {
-        const data = await orgApi.getOrganizationDetails(user.organizationId);
-        if (data.branding) {
-          setBranding(data.branding);
+        const [orgDetails, fullBranding] = await Promise.all([
+          orgApi.getOrganizationDetails(user.organizationId),
+          orgApi.getFullBranding(user.organizationId).catch(() => null),
+        ]);
+        if (orgDetails.type) setOrgType(orgDetails.type);
+        if (fullBranding) {
+          setBranding(fullBranding);
+        } else if (orgDetails.branding) {
+          setBranding(orgDetails.branding);
         } else {
-          setBranding((prev) => ({ ...prev, legalBusinessName: data.name }));
+          setBranding((prev) => ({ ...prev, legalBusinessName: orgDetails.name }));
         }
       } catch (err) {
         console.error('Failed to load branding', err);
@@ -48,15 +64,33 @@ export default function SettingsPage() {
   const handleSaveBranding = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.organizationId) return;
-    setIsSaving(true);
+    setIsSavingBranding(true);
     setSuccessMessage(null);
     try {
       await orgApi.updateBranding(user.organizationId, branding);
-      setSuccessMessage('Branding & Organization details updated successfully!');
+      setSuccessMessage('Branding & Organization bank details updated successfully!');
     } catch (err) {
-      alert('Failed to update branding settings.');
+      alert(getErrorMessage(err, 'Failed to update branding settings.'));
     } finally {
-      setIsSaving(false);
+      setIsSavingBranding(false);
+    }
+  };
+
+  const handleUpdateOrgType = async (newType: OrganizationType) => {
+    if (!user?.organizationId || newType === orgType) return;
+    if (!confirm(`Are you sure you want to switch your organization operating mode to ${newType}?`)) return;
+
+    setIsUpdatingType(true);
+    setSuccessMessage(null);
+    try {
+      await orgApi.updateOrgType(user.organizationId, newType);
+      setOrgType(newType);
+      setSuccessMessage(`Organization operating mode updated to ${newType}! Please refresh to update navigation.`);
+      window.location.reload();
+    } catch (err) {
+      alert(getErrorMessage(err, 'Cannot switch organization type. Check active landlords/properties constraints.'));
+    } finally {
+      setIsUpdatingType(false);
     }
   };
 
@@ -69,7 +103,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Organization Settings</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Configure legal business name, agency branding, logo, colors, GSTIN, RERA registration, and contact details.
+          Configure operating model (Owner vs Brokerage), legal entity details, bank account info, and portal branding.
         </p>
       </div>
 
@@ -79,6 +113,69 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Operating Model Switcher */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <Building className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Organization Operating Model</h2>
+            <p className="text-xs text-slate-500">Controls which features (Landlords directory, brokerage fees, payouts) are enabled.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <button
+            type="button"
+            onClick={() => handleUpdateOrgType('OWNER')}
+            disabled={isUpdatingType}
+            className={`p-4 rounded-xl text-left border-2 transition-all ${
+              orgType === 'OWNER'
+                ? 'border-blue-600 bg-blue-50/50 shadow-xs'
+                : 'border-slate-200 hover:border-slate-300 bg-slate-50/30'
+            }`}
+          >
+            <span className="font-bold text-xs text-slate-900 block">Direct Property Owner</span>
+            <span className="text-[11px] text-slate-500 block mt-1">
+              Own & manage your properties directly. Hides external landlord directory and payout management.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleUpdateOrgType('BROKERAGE')}
+            disabled={isUpdatingType}
+            className={`p-4 rounded-xl text-left border-2 transition-all ${
+              orgType === 'BROKERAGE'
+                ? 'border-blue-600 bg-blue-50/50 shadow-xs'
+                : 'border-slate-200 hover:border-slate-300 bg-slate-50/30'
+            }`}
+          >
+            <span className="font-bold text-xs text-slate-900 block">Brokerage / Agency</span>
+            <span className="text-[11px] text-slate-500 block mt-1">
+              Manage properties on behalf of external landlords. Requires landlord assignment & enables payouts.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleUpdateOrgType('HYBRID')}
+            disabled={isUpdatingType}
+            className={`p-4 rounded-xl text-left border-2 transition-all ${
+              orgType === 'HYBRID'
+                ? 'border-blue-600 bg-blue-50/50 shadow-xs'
+                : 'border-slate-200 hover:border-slate-300 bg-slate-50/30'
+            }`}
+          >
+            <span className="font-bold text-xs text-slate-900 block">Hybrid / Mixed Model</span>
+            <span className="text-[11px] text-slate-500 block mt-1">
+              Combination of self-owned properties and third-party managed properties.
+            </span>
+          </button>
+        </div>
+      </div>
+
       <form onSubmit={handleSaveBranding} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs space-y-6">
         <div className="space-y-4">
           <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-blue-600">
@@ -87,7 +184,7 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Legal Business Name"
+              label="Legal Business Name *"
               value={branding.legalBusinessName || ''}
               onChange={(e) => setBranding({ ...branding, legalBusinessName: e.target.value })}
               required
@@ -117,6 +214,54 @@ export default function SettingsPage() {
               placeholder="PRM/KA/RERA/..."
               value={branding.reraNumber || ''}
               onChange={(e) => setBranding({ ...branding, reraNumber: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Bank & Payment Details for Direct Owner Collections */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-blue-600">
+            Owner Collection Bank Account & UPI
+          </h2>
+          <p className="text-xs text-slate-500">
+            Used on invoices and payment receipts for self-owned properties.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Account Holder Name"
+              placeholder="e.g. Acme Residencies Private Limited"
+              value={branding.accountHolderName || ''}
+              onChange={(e) => setBranding({ ...branding, accountHolderName: e.target.value })}
+            />
+            <Input
+              label="Bank Account Number"
+              placeholder="1234567890"
+              value={branding.bankAccountNumber || ''}
+              onChange={(e) => setBranding({ ...branding, bankAccountNumber: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Bank Name"
+              placeholder="HDFC Bank"
+              value={branding.bankName || ''}
+              onChange={(e) => setBranding({ ...branding, bankName: e.target.value })}
+            />
+            <Input
+              label="IFSC Code"
+              placeholder="HDFC0001234"
+              value={branding.bankIfscCode || ''}
+              onChange={(e) => setBranding({ ...branding, bankIfscCode: e.target.value })}
+            />
+            <Input
+              label="Owner UPI ID"
+              placeholder="acme@hdfcbank"
+              value={branding.ownerUpiId || ''}
+              onChange={(e) => setBranding({ ...branding, ownerUpiId: e.target.value })}
             />
           </div>
         </div>
@@ -183,11 +328,12 @@ export default function SettingsPage() {
         </div>
 
         <div className="pt-4 flex justify-end">
-          <Button type="submit" isLoading={isSaving}>
-            <Save className="w-4 h-4 mr-2" /> Save Branding Settings
+          <Button type="submit" isLoading={isSavingBranding}>
+            <Save className="w-4 h-4 mr-2" /> Save Settings & Bank Info
           </Button>
         </div>
       </form>
     </div>
   );
 }
+

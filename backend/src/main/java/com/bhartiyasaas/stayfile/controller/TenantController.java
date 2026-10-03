@@ -36,6 +36,14 @@ public class TenantController {
                 .body(ApiResponse.success(response, "Tenant onboarded successfully"));
     }
 
+    @PreAuthorize("hasRole('TENANT')")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<TenantResponse>> getCurrentTenantProfile(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        TenantResponse response = tenantService.getTenantForCurrentUser(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TenantResponse>> getTenantById(

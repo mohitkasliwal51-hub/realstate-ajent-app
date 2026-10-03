@@ -34,9 +34,9 @@ export default function DashboardPage() {
       setIsLoading(true);
       try {
         const [propsRes, leasesRes, tenantsRes] = await Promise.allSettled([
-          propertyApi.getProperties(user.organizationId),
-          leaseApi.getLeases(user.organizationId),
-          tenantApi.getTenants(user.organizationId),
+          propertyApi.getProperties(),
+          leaseApi.getLeases(),
+          tenantApi.getTenants(),
         ]);
 
         if (propsRes.status === 'fulfilled') setProperties(propsRes.value || []);

@@ -33,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private final ProfileRepository profileRepository;
     private final OrganizationRepository organizationRepository;
     private final BrandingSettingsRepository brandingSettingsRepository;
+    private final com.bhartiyasaas.stayfile.repository.TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -54,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         Organization organization = Organization.builder()
                 .name(request.getOrganizationName())
                 .slug(slug)
+                .organizationType(request.getOrganizationType() != null ? request.getOrganizationType() : com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER)
                 .isActive(true)
                 .build();
         organization = organizationRepository.save(organization);
@@ -115,6 +117,12 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found with ID: " + currentUser.getProfileId()));
 
         Organization org = profile.getOrganization();
+        java.util.UUID tenantId = null;
+        if (profile.getRole() == UserRole.TENANT && org != null) {
+            tenantId = tenantRepository.findByUserIdAndOrganizationId(profile.getId(), org.getId())
+                    .map(com.bhartiyasaas.stayfile.entity.Tenant::getId).orElse(null);
+        }
+
         return UserProfileResponse.builder()
                 .profileId(profile.getId())
                 .email(profile.getEmail())
@@ -125,6 +133,8 @@ public class AuthServiceImpl implements AuthService {
                 .organizationId(profile.getOrganizationId())
                 .organizationName(org != null ? org.getName() : null)
                 .organizationSlug(org != null ? org.getSlug() : null)
+                .organizationType(org != null ? org.getOrganizationType() : com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER)
+                .tenantId(tenantId)
                 .isActive(profile.getIsActive())
                 .build();
     }
@@ -138,6 +148,12 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthUserResponse toAuthUser(Profile profile, Organization organization) {
+        java.util.UUID tenantId = null;
+        if (profile.getRole() == UserRole.TENANT && organization != null) {
+            tenantId = tenantRepository.findByUserIdAndOrganizationId(profile.getId(), organization.getId())
+                    .map(com.bhartiyasaas.stayfile.entity.Tenant::getId).orElse(null);
+        }
+
         return AuthUserResponse.builder()
                 .id(profile.getId())
                 .email(profile.getEmail())
@@ -145,6 +161,9 @@ public class AuthServiceImpl implements AuthService {
                 .role(profile.getRole())
                 .organizationId(profile.getOrganizationId())
                 .organizationName(organization == null ? null : organization.getName())
+                .organizationSlug(organization == null ? null : organization.getSlug())
+                .organizationType(organization == null ? com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER : organization.getOrganizationType())
+                .tenantId(tenantId)
                 .phone(profile.getPhone())
                 .build();
     }

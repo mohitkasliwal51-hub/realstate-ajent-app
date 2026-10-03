@@ -60,4 +60,13 @@ public class LandlordController {
         LandlordResponse response = landlordService.updateLandlord(id, request, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response, "Landlord updated successfully"));
     }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLandlord(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        landlordService.deleteLandlord(id, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(null, "Landlord deactivated successfully"));
+    }
 }

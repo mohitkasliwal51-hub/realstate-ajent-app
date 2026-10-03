@@ -194,6 +194,31 @@ CREATE TYPE lead_status AS ENUM (
     'LOST'
 );
 
+CREATE TYPE ticket_status AS ENUM (
+    'OPEN',               -- Logged, not yet picked up
+    'IN_PROGRESS',        -- Assigned / being worked on
+    'RESOLVED',           -- Fixed, awaiting confirmation
+    'CLOSED'              -- Confirmed / archived
+);
+
+CREATE TYPE ticket_priority AS ENUM (
+    'LOW',
+    'MEDIUM',
+    'HIGH',
+    'URGENT'
+);
+
+CREATE TYPE ticket_category AS ENUM (
+    'PLUMBING',
+    'ELECTRICAL',
+    'APPLIANCE',
+    'CARPENTRY',
+    'CLEANING',
+    'PEST_CONTROL',
+    'INTERNET',
+    'OTHER'
+);
+
 -- -----------------------------------------------------------------------------
 -- 2. CORE MULTI-TENANT, USER & LANDLORD TABLES
 -- -----------------------------------------------------------------------------
@@ -681,9 +706,9 @@ CREATE TABLE IF NOT EXISTS public.maintenance_tickets (
     
     title TEXT NOT NULL,                             -- e.g. "Geyser not heating"
     description TEXT,
-    category TEXT DEFAULT 'PLUMBING',
-    priority TEXT DEFAULT 'MEDIUM',
-    status TEXT DEFAULT 'OPEN',
+    category ticket_category NOT NULL DEFAULT 'PLUMBING',
+    priority ticket_priority NOT NULL DEFAULT 'MEDIUM',
+    status ticket_status NOT NULL DEFAULT 'OPEN',
     images TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -957,6 +982,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_monthly_rent_invoice
 
 ALTER TABLE public.tenants ADD CONSTRAINT uq_org_phone UNIQUE (organization_id, phone);
 
+-- One tenant record per tenant login (required for tenant self-service lookups)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_user_id
+    ON public.tenants(user_id)
+    WHERE user_id IS NOT NULL;
+
 -- High-Performance Composite Multi-Tenant Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_leases_org_status ON public.leases(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_landlords_org ON public.landlords(managing_organization_id, is_active);
@@ -974,6 +1004,8 @@ CREATE INDEX IF NOT EXISTS idx_receipts_invoice ON public.receipts(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_payouts_landlord ON public.landlord_payouts(landlord_id, payout_status);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_org_phone ON public.whatsapp_logs(organization_id, phone_number);
 CREATE INDEX IF NOT EXISTS idx_leads_org_status ON public.property_leads(organization_id, status);
+CREATE INDEX IF NOT EXISTS idx_tickets_org_status ON public.maintenance_tickets(organization_id, status);
+CREATE INDEX IF NOT EXISTS idx_tickets_tenant ON public.maintenance_tickets(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_integration_logs_provider ON public.integration_logs(provider);
 
 -- -----------------------------------------------------------------------------

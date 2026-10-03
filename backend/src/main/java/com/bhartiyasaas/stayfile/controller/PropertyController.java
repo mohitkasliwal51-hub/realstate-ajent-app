@@ -35,6 +35,26 @@ public class PropertyController {
                 .body(ApiResponse.success(response, "Property created successfully"));
     }
 
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<PropertyResponse>> updateProperty(
+            @PathVariable UUID id,
+            @Valid @RequestBody PropertyCreateRequest request,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        PropertyResponse response = propertyService.updateProperty(id, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response, "Property updated successfully"));
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<ApiResponse<PropertyResponse>> togglePropertyActive(
+            @PathVariable UUID id,
+            @RequestParam Boolean isActive,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        PropertyResponse response = propertyService.togglePropertyActive(id, isActive, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response, "Property active status updated"));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PropertyResponse>> getPropertyById(

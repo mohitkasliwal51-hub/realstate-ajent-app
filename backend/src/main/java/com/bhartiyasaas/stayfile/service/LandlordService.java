@@ -12,4 +12,5 @@ public interface LandlordService {
     LandlordResponse getLandlordById(UUID id, SecurityUser currentUser);
     List<LandlordResponse> getLandlordsByOrganization(SecurityUser currentUser);
     LandlordResponse updateLandlord(UUID id, LandlordRequest request, SecurityUser currentUser);
+    void deleteLandlord(UUID id, SecurityUser currentUser);
 }

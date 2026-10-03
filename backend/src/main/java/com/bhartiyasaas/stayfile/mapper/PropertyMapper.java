@@ -19,6 +19,11 @@ public interface PropertyMapper {
 
     List<PropertyResponse> toResponseList(List<Property> properties);
 
+    @Mapping(target = "organizationId", source = "organization.id")
+    com.bhartiyasaas.stayfile.dto.response.PublicPropertyResponse toPublicResponse(Property property);
+
+    List<com.bhartiyasaas.stayfile.dto.response.PublicPropertyResponse> toPublicResponseList(List<Property> properties);
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "organization", ignore = true)
     @Mapping(target = "landlord", ignore = true)

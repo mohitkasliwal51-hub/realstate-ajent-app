@@ -14,12 +14,12 @@ import com.bhartiyasaas.stayfile.mapper.PropertyMapper;
 import com.bhartiyasaas.stayfile.repository.LandlordRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.PropertyRepository;
+import com.bhartiyasaas.stayfile.security.OrganizationPolicyService;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.service.PropertyService;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class PropertyServiceImpl implements PropertyService {
     private final OrganizationRepository organizationRepository;
     private final LandlordRepository landlordRepository;
     private final PropertyMapper propertyMapper;
+    private final OrganizationPolicyService organizationPolicyService;
 
     @Override
     @Transactional
@@ -43,6 +44,8 @@ public class PropertyServiceImpl implements PropertyService {
                     .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
         }
 
+        organizationPolicyService.validatePropertyLandlord(organization, landlord);
+
         Property property = propertyMapper.toEntity(request);
         property.setOrganization(organization);
         property.setLandlord(landlord);
@@ -50,6 +53,53 @@ public class PropertyServiceImpl implements PropertyService {
 
         Property savedProperty = propertyRepository.save(property);
         return propertyMapper.toResponse(savedProperty);
+    }
+
+    @Override
+    @Transactional
+    public PropertyResponse updateProperty(UUID id, PropertyCreateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
+
+        Property property = propertyRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
+
+        Landlord landlord = null;
+        if (request.getLandlordId() != null) {
+            landlord = landlordRepository.findByIdAndManagingOrganizationId(request.getLandlordId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
+        }
+
+        organizationPolicyService.validatePropertyLandlord(organization, landlord);
+
+        property.setLandlord(landlord);
+        property.setName(request.getName());
+        property.setType(request.getType());
+        property.setAddress(request.getAddress());
+        property.setCity(request.getCity());
+        property.setState(request.getState());
+        property.setPincode(request.getPincode());
+        property.setLandmark(request.getLandmark());
+        property.setLatitude(request.getLatitude());
+        property.setLongitude(request.getLongitude());
+        property.setAmenities(request.getAmenities());
+        property.setRules(request.getRules());
+        property.setImages(request.getImages());
+        property.setDescription(request.getDescription());
+
+        Property saved = propertyRepository.save(property);
+        return propertyMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PropertyResponse togglePropertyActive(UUID id, Boolean isActive, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Property property = propertyRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
+        property.setIsActive(isActive);
+        return propertyMapper.toResponse(propertyRepository.save(property));
     }
 
     @Override

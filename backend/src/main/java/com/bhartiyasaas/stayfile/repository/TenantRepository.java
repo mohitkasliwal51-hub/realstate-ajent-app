@@ -15,4 +15,5 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     Optional<Tenant> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Optional<Tenant> findByOrganizationIdAndEmail(UUID organizationId, String email);
     Optional<Tenant> findByOrganizationIdAndPhone(UUID organizationId, String phone);
+    Optional<Tenant> findByUserIdAndOrganizationId(UUID userId, UUID organizationId);
 }

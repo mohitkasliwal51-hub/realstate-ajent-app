@@ -29,6 +29,7 @@ import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ProfileRepository;
 import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
+import com.bhartiyasaas.stayfile.security.OrganizationPolicyService;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.LeaseService;
@@ -50,6 +51,7 @@ public class LeaseServiceImpl implements LeaseService {
     private final PdfGeneratorService pdfGeneratorService;
     private final LeaseMapper leaseMapper;
     private final TenantAccessService tenantAccessService;
+    private final OrganizationPolicyService organizationPolicyService;
 
     @Override
     @Transactional
@@ -81,6 +83,13 @@ public class LeaseServiceImpl implements LeaseService {
         if (request.getLandlordId() != null) {
             landlord = landlordRepository.findByIdAndManagingOrganizationId(request.getLandlordId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
+        } else if (unit.getProperty() != null && unit.getProperty().getLandlord() != null) {
+            landlord = unit.getProperty().getLandlord();
+        }
+
+        organizationPolicyService.validatePropertyLandlord(organization, landlord);
+        if (unit.getProperty() != null) {
+            organizationPolicyService.validateLeaseBrokerageFee(unit.getProperty(), request.getBrokerageFeeType());
         }
 
         Profile createdBy = profileRepository.findByOrganizationIdAndId(organizationId, currentUser.getProfileId())
@@ -137,6 +146,19 @@ public class LeaseServiceImpl implements LeaseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(lease.getTenant(), "rent agreement");
         return leaseMapper.toResponse(lease);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LeaseResponse getLeasesForCurrentUser(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Tenant tenant = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant profile not found for current user"));
+
+        Lease activeLease = leaseRepository.findFirstByTenantIdAndStatus(tenant.getId(), LeaseStatus.ACTIVE)
+                .orElseGet(() -> leaseRepository.findByTenantId(tenant.getId()).stream().findFirst()
+                        .orElseThrow(() -> new ResourceNotFoundException("No lease agreements found for current user")));
+        return leaseMapper.toResponse(activeLease);
     }
 
     @Override

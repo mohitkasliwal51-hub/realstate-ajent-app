@@ -41,9 +41,9 @@ export default function LeasesPage() {
     setIsLoading(true);
     try {
       const [leasesRes, propsRes, tenantsRes] = await Promise.all([
-        leaseApi.getLeases(user.organizationId),
-        propertyApi.getProperties(user.organizationId),
-        tenantApi.getTenants(user.organizationId),
+        leaseApi.getLeases(),
+        propertyApi.getProperties(),
+        tenantApi.getTenants(),
       ]);
       setLeases(leasesRes || []);
       setProperties(propsRes || []);
@@ -51,7 +51,7 @@ export default function LeasesPage() {
 
       if (propsRes && propsRes.length > 0) {
         setSelectedPropertyId(propsRes[0].id);
-        const unitList = await unitApi.getUnitsByProperty(propsRes[0].id, user.organizationId);
+        const unitList = await unitApi.getUnitsByProperty(propsRes[0].id);
         setUnits(unitList.filter((u) => u.status === 'AVAILABLE') || []);
       }
     } catch (err) {
@@ -68,18 +68,16 @@ export default function LeasesPage() {
   const handlePropertyChange = async (propertyId: string) => {
     setSelectedPropertyId(propertyId);
     if (!user?.organizationId) return;
-    const unitList = await unitApi.getUnitsByProperty(propertyId, user.organizationId);
+    const unitList = await unitApi.getUnitsByProperty(propertyId);
     setUnits(unitList.filter((u) => u.status === 'AVAILABLE') || []);
   };
 
   const handleCreateLease = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.organizationId || !user?.id) return;
+    if (!user?.organizationId) return;
     setIsSubmitting(true);
     try {
       await leaseApi.createLease({
-        organizationId: user.organizationId,
-        ownerId: user.id,
         status: 'DRAFT',
         ...formData,
       });
@@ -95,7 +93,7 @@ export default function LeasesPage() {
   const handleStatusTransition = async (leaseId: string, targetStatus: LeaseStatus) => {
     if (!user?.organizationId) return;
     try {
-      await leaseApi.updateLeaseStatus(leaseId, user.organizationId, targetStatus);
+      await leaseApi.updateLeaseStatus(leaseId, targetStatus);
       await loadData();
     } catch (err: unknown) {
       alert(getErrorMessage(err, 'Invalid state transition.'));
@@ -105,7 +103,7 @@ export default function LeasesPage() {
   const handleDownloadPdf = async (leaseId: string) => {
     if (!user?.organizationId) return;
     try {
-      const blob = await leaseApi.downloadPdf(leaseId, user.organizationId);
+      const blob = await leaseApi.downloadPdf(leaseId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -40,6 +40,7 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
     private final LeaseRepository leaseRepository;
     private final LandlordPayoutMapper landlordPayoutMapper;
     private final PdfGeneratorService pdfGeneratorService;
+    private final com.bhartiyasaas.stayfile.security.OrganizationPolicyService organizationPolicyService;
 
     @Override
     @Transactional
@@ -47,6 +48,7 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
         UUID organizationId = currentUser.getOrganizationId();
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
+        organizationPolicyService.requirePayoutManagement(organization);
 
         Landlord landlord = landlordRepository.findByIdAndManagingOrganizationId(request.getLandlordId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + request.getLandlordId()));
@@ -115,6 +117,7 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
         UUID organizationId = currentUser.getOrganizationId();
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
+        organizationPolicyService.requirePayoutManagement(organization);
 
         Landlord landlord = landlordRepository.findByIdAndManagingOrganizationId(landlordId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + landlordId));

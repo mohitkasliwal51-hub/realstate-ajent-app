@@ -17,6 +17,9 @@ public class RegisterRequest {
 
     private String organizationSlug;
 
+    @Builder.Default
+    private com.bhartiyasaas.stayfile.entity.enums.OrganizationType organizationType = com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER;
+
     @NotBlank(message = "Full name is required")
     private String fullName;
 

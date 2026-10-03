@@ -15,4 +15,6 @@ public interface PropertyRepository extends JpaRepository<Property, UUID> {
     List<Property> findByOrganizationIdAndIsActiveTrue(UUID organizationId);
     List<Property> findByIsActiveTrue();
     Optional<Property> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    long countByOrganizationIdAndLandlordIsNotNull(UUID organizationId);
+    long countByOrganizationIdAndLandlordIsNull(UUID organizationId);
 }

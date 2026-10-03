@@ -34,8 +34,8 @@ export default function ReceiptsPage() {
     setIsLoading(true);
     try {
       const [receiptsRes, leasesRes] = await Promise.all([
-        receiptApi.getReceipts(user.organizationId),
-        leaseApi.getLeases(user.organizationId),
+        receiptApi.getReceipts(),
+        leaseApi.getLeases(),
       ]);
       setReceipts(receiptsRes || []);
       setLeases((leasesRes || []).filter((lease) => lease.status === 'ACTIVE'));
@@ -56,6 +56,7 @@ export default function ReceiptsPage() {
       setFormData({
         ...formData,
         leaseId: selectedLease.id,
+        tenantId: selectedLease.tenantId,
         amount: selectedLease.monthlyRent,
       });
     }
@@ -66,9 +67,10 @@ export default function ReceiptsPage() {
     if (!user?.organizationId) return;
     setIsSubmitting(true);
     try {
+      const targetTenantId = formData.tenantId || leases.find((lease) => lease.id === formData.leaseId)?.tenantId || '';
       await receiptApi.createReceipt({
-        organizationId: user.organizationId,
         ...formData,
+        tenantId: targetTenantId,
       });
       setIsModalOpen(false);
       await loadData();
@@ -82,7 +84,7 @@ export default function ReceiptsPage() {
   const handleDownloadPdf = async (receiptId: string) => {
     if (!user?.organizationId) return;
     try {
-      const blob = await receiptApi.downloadPdf(receiptId, user.organizationId);
+      const blob = await receiptApi.downloadPdf(receiptId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

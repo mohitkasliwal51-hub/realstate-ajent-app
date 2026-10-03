@@ -37,6 +37,14 @@ public class ReceiptController {
                 .body(ApiResponse.success(response, "Receipt generated successfully"));
     }
 
+    @PreAuthorize("hasRole('TENANT')")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<ReceiptResponse>>> getCurrentUserReceipts(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<ReceiptResponse> response = receiptService.getReceiptsForCurrentUser(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ReceiptResponse>> getReceiptById(

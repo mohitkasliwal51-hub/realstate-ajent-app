@@ -62,8 +62,11 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             signing.setSpacingAfter(16);
             document.add(signing);
 
-            String landlordName = lease.getLandlord() != null ? lease.getLandlord().getLegalName() 
-                    : (lease.getCreatedBy() != null ? lease.getCreatedBy().getFullName() : "Landlord");
+            BrandingSettings leaseBranding = brandingSettingsRepository.findByOrganizationId(lease.getOrganization().getId()).orElse(null);
+            String landlordName = lease.getLandlord() != null ? lease.getLandlord().getLegalName()
+                    : (leaseBranding != null && leaseBranding.getLegalBusinessName() != null && !leaseBranding.getLegalBusinessName().isBlank()
+                            ? leaseBranding.getLegalBusinessName()
+                            : (lease.getCreatedBy() != null ? lease.getCreatedBy().getFullName() : "Landlord"));
 
             // Body Text
             String bodyText = String.format(

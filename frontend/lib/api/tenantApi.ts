@@ -5,48 +5,47 @@ export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 export interface Tenant {
   id: string;
   organizationId: string;
+  /** Linked login profile (TENANT role), if the tenant has portal access. */
+  userId?: string;
   fullName: string;
-  email: string;
+  email?: string;
   phone: string;
+  permanentAddress?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
-  permanentAddress?: string;
+  emergencyContactRelation?: string;
   idProofType?: string;
+  /** Backend only returns the last 4 digits; the full number is never sent back. */
   idProofLast4?: string;
   idProofDocumentUrl?: string;
   kycStatus: VerificationStatus;
-  idProofFrontUrl?: string;
-  idProofBackUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface TenantCreatePayload {
-  organizationId: string;
+  userId?: string;
   fullName: string;
-  email: string;
+  email?: string;
   phone: string;
+  /** Required by backend (@NotBlank). */
+  permanentAddress: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
-  permanentAddress?: string;
   idProofType?: string;
   idProofNumber?: string;
   idProofDocumentUrl?: string;
 }
 
 export const tenantApi = {
-  getTenants: async (organizationId: string): Promise<Tenant[]> => {
-    const response = await apiClient.get('/api/v1/tenants', {
-      params: { organizationId },
-    });
+  getTenants: async (): Promise<Tenant[]> => {
+    const response = await apiClient.get('/api/v1/tenants');
     return response.data.data;
   },
 
-  getTenantById: async (id: string, organizationId: string): Promise<Tenant> => {
-    const response = await apiClient.get(`/api/v1/tenants/${id}`, {
-      params: { organizationId },
-    });
+  getTenantById: async (id: string): Promise<Tenant> => {
+    const response = await apiClient.get(`/api/v1/tenants/${id}`);
     return response.data.data;
   },
 
@@ -57,12 +56,14 @@ export const tenantApi = {
 
   updateKycStatus: async (
     id: string,
-    organizationId: string,
     status: VerificationStatus
   ): Promise<Tenant> => {
-    const response = await apiClient.patch(`/api/v1/tenants/${id}/kyc`, null, {
-      params: { organizationId, status },
-    });
+    const response = await apiClient.patch(`/api/v1/tenants/${id}/kyc`, null, { params: { status } });
+    return response.data.data;
+  },
+
+  getMyProfile: async (): Promise<Tenant> => {
+    const response = await apiClient.get('/api/v1/tenants/me');
     return response.data.data;
   },
 };

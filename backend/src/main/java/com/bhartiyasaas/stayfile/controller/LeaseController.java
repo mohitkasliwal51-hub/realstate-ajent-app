@@ -38,6 +38,14 @@ public class LeaseController {
                 .body(ApiResponse.success(response, "Rent agreement created successfully"));
     }
 
+    @PreAuthorize("hasRole('TENANT')")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<LeaseResponse>> getCurrentUserLease(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        LeaseResponse response = leaseService.getLeasesForCurrentUser(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LeaseResponse>> getLeaseById(

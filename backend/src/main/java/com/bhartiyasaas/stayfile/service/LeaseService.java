@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface LeaseService {
     LeaseResponse createLease(LeaseCreateRequest request, SecurityUser currentUser);
     LeaseResponse getLeaseById(UUID id, SecurityUser currentUser);
+    LeaseResponse getLeasesForCurrentUser(SecurityUser currentUser);
     List<LeaseResponse> getLeasesByOrganization(SecurityUser currentUser);
     byte[] getLeasePdf(UUID leaseId, SecurityUser currentUser);
     LeaseResponse updateLeaseStatus(UUID leaseId, SecurityUser currentUser, LeaseStatus targetStatus);

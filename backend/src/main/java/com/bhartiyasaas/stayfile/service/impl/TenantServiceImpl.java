@@ -83,6 +83,15 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     @Transactional(readOnly = true)
+    public TenantResponse getTenantForCurrentUser(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Tenant tenant = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant profile not found for current user"));
+        return tenantMapper.toResponse(tenant);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<TenantResponse> getTenantsByOrganization(SecurityUser currentUser) {
         UUID organizationId = currentUser.getOrganizationId();
         List<Tenant> tenants = tenantRepository.findByOrganizationId(organizationId).stream()

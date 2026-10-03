@@ -7,6 +7,8 @@ export interface Unit {
   id: string;
   propertyId: string;
   organizationId: string;
+  /** Parent room/flat when this unit is a bed inside a shared room. */
+  parentUnitId?: string;
   unitNumber: string;
   floorNumber: number;
   sharingType: SharingType;
@@ -21,8 +23,8 @@ export interface Unit {
 }
 
 export interface UnitCreatePayload {
-  organizationId: string;
   propertyId: string;
+  parentUnitId?: string;
   unitNumber: string;
   floorNumber?: number;
   sharingType?: SharingType;
@@ -36,19 +38,14 @@ export interface UnitCreatePayload {
 export const unitApi = {
   getUnitsByProperty: async (
     propertyId: string,
-    organizationId: string,
     status?: UnitStatus
   ): Promise<Unit[]> => {
-    const response = await apiClient.get(`/api/v1/properties/${propertyId}/units`, {
-      params: { organizationId, status },
-    });
+    const response = await apiClient.get(`/api/v1/properties/${propertyId}/units`, { params: { status } });
     return response.data.data;
   },
 
-  getUnitById: async (id: string, organizationId: string): Promise<Unit> => {
-    const response = await apiClient.get(`/api/v1/units/${id}`, {
-      params: { organizationId },
-    });
+  getUnitById: async (id: string): Promise<Unit> => {
+    const response = await apiClient.get(`/api/v1/units/${id}`);
     return response.data.data;
   },
 
@@ -59,25 +56,26 @@ export const unitApi = {
 
   updateUnitStatus: async (
     id: string,
-    organizationId: string,
     status: UnitStatus
   ): Promise<Unit> => {
     const response = await apiClient.patch(
       `/api/v1/units/${id}/status`,
       null,
-      { params: { organizationId, status } }
+      { params: { status } }
     );
     return response.data.data;
   },
 
+  /** Full replace: backend validates the same required fields as create. */
   updateUnit: async (
     id: string,
-    organizationId: string,
     payload: UnitCreatePayload
   ): Promise<Unit> => {
-    const response = await apiClient.put(`/api/v1/units/${id}`, payload, {
-      params: { organizationId },
-    });
+    const response = await apiClient.put(`/api/v1/units/${id}`, payload);
     return response.data.data;
+  },
+
+  deleteUnit: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/units/${id}`);
   },
 };

@@ -17,5 +17,8 @@ public class AuthUserResponse {
     private UserRole role;
     private UUID organizationId;
     private String organizationName;
+    private String organizationSlug;
+    private com.bhartiyasaas.stayfile.entity.enums.OrganizationType organizationType;
+    private UUID tenantId;
     private String phone;
 }

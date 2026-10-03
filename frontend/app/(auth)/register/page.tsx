@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { apiClient } from '@/lib/api/client';
+import { authApi } from '@/lib/api/authApi';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -25,6 +25,7 @@ export default function RegisterPage() {
     phone: '',
     password: '',
     organizationName: '',
+    organizationType: 'HYBRID' as 'OWNER' | 'BROKERAGE' | 'HYBRID',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +36,7 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      const response = await apiClient.post('/api/v1/auth/register', formData);
-      const data = response.data.data;
+      const data = await authApi.register(formData);
       login(data.token, data.user);
       router.push('/app');
     } catch (err: unknown) {
@@ -73,6 +73,20 @@ export default function RegisterPage() {
             onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
             required
           />
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-slate-700">Business Operating Model</label>
+            <select
+              value={formData.organizationType}
+              onChange={(e) => setFormData({ ...formData, organizationType: e.target.value as 'OWNER' | 'BROKERAGE' | 'HYBRID' })}
+              className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+            >
+              <option value="OWNER">Direct Property Owner (I manage my own properties)</option>
+              <option value="BROKERAGE">Brokerage / Agency (I manage properties for landlords)</option>
+              <option value="HYBRID">Hybrid / Mixed Model (Both self-owned & managed)</option>
+            </select>
+            <p className="text-[10px] text-slate-400">Can be changed later in Organization Settings</p>
+          </div>
 
           <Input
             label="Full Name"

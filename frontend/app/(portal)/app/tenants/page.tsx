@@ -33,7 +33,7 @@ export default function TenantsPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const data = await tenantApi.getTenants(user.organizationId);
+      const data = await tenantApi.getTenants();
       setTenants(data || []);
     } catch (err) {
       console.error('Failed to load tenants', err);
@@ -52,7 +52,6 @@ export default function TenantsPage() {
     setIsSubmitting(true);
     try {
       await tenantApi.createTenant({
-        organizationId: user.organizationId,
         ...formData,
       });
       setIsModalOpen(false);

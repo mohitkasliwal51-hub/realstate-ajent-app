@@ -21,6 +21,7 @@ import com.bhartiyasaas.stayfile.repository.InvoiceRepository;
 import com.bhartiyasaas.stayfile.repository.LeaseRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.ReceiptRepository;
+import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
@@ -36,6 +37,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     private final OrganizationRepository organizationRepository;
     private final LeaseRepository leaseRepository;
     private final InvoiceRepository invoiceRepository;
+    private final TenantRepository tenantRepository;
     private final PdfGeneratorService pdfGeneratorService;
     private final ReceiptMapper receiptMapper;
     private final TenantAccessService tenantAccessService;
@@ -94,6 +96,16 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");
         return receiptMapper.toResponse(receipt);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReceiptResponse> getReceiptsForCurrentUser(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        var tenant = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant profile not found for current user"));
+        List<Receipt> receipts = receiptRepository.findByTenantId(tenant.getId());
+        return receiptMapper.toResponseList(receipts);
     }
 
     @Override
