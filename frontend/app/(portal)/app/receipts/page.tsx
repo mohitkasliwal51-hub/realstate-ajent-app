@@ -30,16 +30,23 @@ export default function ReceiptsPage() {
     notes: 'Monthly rent payment received via StayFile OS.',
   });
 
+  const isTenant = user?.role === 'TENANT';
+
   const loadData = async () => {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const [receiptsRes, leasesRes] = await Promise.all([
-        receiptApi.getReceipts(),
-        leaseApi.getLeases(),
-      ]);
-      setReceipts(receiptsRes || []);
-      setLeases((leasesRes || []).filter((lease) => lease.status === 'ACTIVE'));
+      if (isTenant) {
+        const myReceipts = await receiptApi.getMyReceipts();
+        setReceipts(myReceipts || []);
+      } else {
+        const [receiptsRes, leasesRes] = await Promise.all([
+          receiptApi.getReceipts(),
+          leaseApi.getLeases(),
+        ]);
+        setReceipts(receiptsRes || []);
+        setLeases((leasesRes || []).filter((lease) => lease.status === 'ACTIVE'));
+      }
     } catch (err) {
       console.error('Failed to load receipt data', err);
     } finally {
@@ -49,7 +56,7 @@ export default function ReceiptsPage() {
 
   useEffect(() => {
     loadData();
-  }, [user?.organizationId]);
+  }, [user?.organizationId, user?.role]);
 
   const handleLeaseSelect = (leaseId: string) => {
     const selectedLease = leases.find((l) => l.id === leaseId);
@@ -100,14 +107,18 @@ export default function ReceiptsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Rent Receipts</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{isTenant ? 'Payment Receipts' : 'Rent Receipts'}</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Receipts created exclusively from active valid leases with automatic tenant mapping & PDF export.
+            {isTenant
+              ? 'View and download official payment receipts for rent, deposits, and maintenance.'
+              : 'Receipts created exclusively from active valid leases with automatic tenant mapping & PDF export.'}
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Issue Rent Receipt
-        </Button>
+        {!isTenant && (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Issue Rent Receipt
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -116,12 +127,18 @@ export default function ReceiptsPage() {
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
           <ReceiptIcon className="w-12 h-12 text-slate-400 mx-auto" />
           <div>
-            <h3 className="font-bold text-slate-900">No receipts issued yet</h3>
-            <p className="text-xs text-slate-500 mt-1">Select an active lease to issue your first rent receipt.</p>
+            <h3 className="font-bold text-slate-900">{isTenant ? 'No receipts found' : 'No receipts issued yet'}</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              {isTenant
+                ? 'You do not have any payment receipts recorded yet.'
+                : 'Select an active lease to issue your first rent receipt.'}
+            </p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Issue Rent Receipt
-          </Button>
+          {!isTenant && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Issue Rent Receipt
+            </Button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">

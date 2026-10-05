@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -11,14 +11,32 @@ export default function PortalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
+      return;
     }
-  }, [isAuthenticated, isLoading, router]);
+
+    if (!isLoading && isAuthenticated && user) {
+      if (user.role === 'TENANT') {
+        const tenantAllowed = ['/app/tenant', '/app/invoices', '/app/receipts', '/app/tickets', '/app/meter-readings'];
+        const isAllowed = tenantAllowed.some((route) => pathname === route || pathname.startsWith(route + '/'));
+        if (!isAllowed) {
+          router.replace('/app/tenant');
+        }
+      } else if (user.role === 'AGENT') {
+        const agentForbidden = ['/app/settings', '/app/payouts'];
+        const isForbidden = agentForbidden.some((route) => pathname === route || pathname.startsWith(route + '/'));
+        if (isForbidden) {
+          router.replace('/app');
+        }
+      }
+    }
+  }, [isAuthenticated, isLoading, user, pathname, router]);
 
   if (isLoading) {
     return (

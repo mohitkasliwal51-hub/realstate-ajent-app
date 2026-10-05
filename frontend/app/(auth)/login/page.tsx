@@ -33,7 +33,11 @@ export default function LoginPage() {
     try {
       const data = await authApi.login({ email, password });
       login(data.token, data.user);
-      router.push('/app');
+      if (data.user?.role === 'TENANT') {
+        router.push('/app/tenant');
+      } else {
+        router.push('/app');
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Login failed. Please check credentials.'));
     } finally {

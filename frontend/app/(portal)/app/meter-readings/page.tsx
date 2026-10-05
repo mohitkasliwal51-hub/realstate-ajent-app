@@ -6,14 +6,18 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { meterReadingApi, MeterReading, MeterType } from '@/lib/api/meterReadingApi';
 import { propertyApi } from '@/lib/api/propertyApi';
 import { unitApi, Unit } from '@/lib/api/unitApi';
+import { leaseApi } from '@/lib/api/leaseApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function MeterReadingsPage() {
   const { user } = useAuth();
+  const isTenant = user?.role === 'TENANT';
+
   const [readings, setReadings] = useState<MeterReading[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,15 +38,25 @@ export default function MeterReadingsPage() {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const [readingsRes, propertiesRes] = await Promise.all([
-        meterReadingApi.getMeterReadings(),
-        propertyApi.getProperties(),
-      ]);
-      setReadings(readingsRes || []);
-      const unitsArrays = await Promise.all(
-        (propertiesRes || []).map((p) => unitApi.getUnitsByProperty(p.id))
-      );
-      setUnits(unitsArrays.flat() || []);
+      if (isTenant) {
+        const lease = await leaseApi.getMyLease().catch(() => null);
+        if (lease?.id) {
+          const tenantReadings = await meterReadingApi.getMeterReadingsByLease(lease.id);
+          setReadings(tenantReadings || []);
+        } else {
+          setReadings([]);
+        }
+      } else {
+        const [readingsRes, propertiesRes] = await Promise.all([
+          meterReadingApi.getMeterReadings(),
+          propertyApi.getProperties(),
+        ]);
+        setReadings(readingsRes || []);
+        const unitsArrays = await Promise.all(
+          (propertiesRes || []).map((p) => unitApi.getUnitsByProperty(p.id))
+        );
+        setUnits(unitsArrays.flat() || []);
+      }
     } catch (err) {
       console.error('Failed to load meter reading data', err);
     } finally {
@@ -52,7 +66,7 @@ export default function MeterReadingsPage() {
 
   useEffect(() => {
     loadData();
-  }, [user?.organizationId]);
+  }, [user?.organizationId, user?.role]);
 
   const handleCreateReading = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,26 +98,40 @@ export default function MeterReadingsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Utility & Meter Readings</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {isTenant ? 'My Meter Readings' : 'Utility & Meter Readings'}
+          </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Log monthly electricity, water, and gas meter readings for auto-utility billing.
+            {isTenant
+              ? 'View recorded electricity, water, and gas meter readings for your rented unit.'
+              : 'Log monthly electricity, water, and gas meter readings for auto-utility billing.'}
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Log Meter Reading
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading meter readings...</div>
-      ) : readings.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
-          <Zap className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900">No meter readings logged</h3>
-          <p className="text-xs text-slate-500">Record electricity or water meter units for occupied units.</p>
+        {!isTenant && (
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" /> Log Meter Reading
           </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <TableSkeleton rows={5} columns={6} />
+      ) : readings.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
+          <Zap className="w-12 h-12 text-slate-400 mx-auto" />
+          <h3 className="font-bold text-slate-900">
+            {isTenant ? 'No meter readings found' : 'No meter readings logged'}
+          </h3>
+          <p className="text-xs text-slate-500">
+            {isTenant
+              ? 'No utility readings have been recorded for your unit yet.'
+              : 'Record electricity or water meter units for occupied units.'}
+          </p>
+          {!isTenant && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Log Meter Reading
+            </Button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">

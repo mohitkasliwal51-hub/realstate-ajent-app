@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Building2,
   Users,
@@ -22,12 +23,17 @@ import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (user?.role === 'TENANT') {
+      router.replace('/app/tenant');
+      return;
+    }
     if (!user?.organizationId) return;
 
     const fetchData = async () => {

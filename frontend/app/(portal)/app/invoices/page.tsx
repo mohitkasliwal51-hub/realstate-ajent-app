@@ -31,16 +31,23 @@ export default function InvoicesPage() {
     description: 'Monthly Rent Invoice',
   });
 
+  const isTenant = user?.role === 'TENANT';
+
   const loadData = async () => {
     if (!user?.organizationId) return;
     setIsLoading(true);
     try {
-      const [invoicesRes, leasesRes] = await Promise.all([
-        invoiceApi.getInvoices(),
-        leaseApi.getLeases(),
-      ]);
-      setInvoices(invoicesRes || []);
-      setLeases((leasesRes || []).filter((l) => l.status === 'ACTIVE'));
+      if (isTenant) {
+        const myInvoices = await invoiceApi.getMyInvoices();
+        setInvoices(myInvoices || []);
+      } else {
+        const [invoicesRes, leasesRes] = await Promise.all([
+          invoiceApi.getInvoices(),
+          leaseApi.getLeases(),
+        ]);
+        setInvoices(invoicesRes || []);
+        setLeases((leasesRes || []).filter((l) => l.status === 'ACTIVE'));
+      }
     } catch (err) {
       console.error('Failed to load invoice data', err);
     } finally {
@@ -50,7 +57,7 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     loadData();
-  }, [user?.organizationId]);
+  }, [user?.organizationId, user?.role]);
 
   const handleLeaseSelect = (leaseId: string) => {
     const lease = leases.find((l) => l.id === leaseId);
@@ -120,14 +127,18 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tax & Rent Invoices</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{isTenant ? 'My Invoices' : 'Tax & Rent Invoices'}</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Generate itemized tax invoices for monthly rent, utilities, and agreement fees.
+            {isTenant
+              ? 'View and download your itemized monthly rent and utility invoices.'
+              : 'Generate itemized tax invoices for monthly rent, utilities, and agreement fees.'}
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Create Invoice
-        </Button>
+        {!isTenant && (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Invoice
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -135,11 +146,17 @@ export default function InvoicesPage() {
       ) : invoices.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
           <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900">No invoices generated</h3>
-          <p className="text-xs text-slate-500">Issue your first itemized invoice linked to an active lease.</p>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create Invoice
-          </Button>
+          <h3 className="font-bold text-slate-900">{isTenant ? 'No invoices found' : 'No invoices generated'}</h3>
+          <p className="text-xs text-slate-500">
+            {isTenant
+              ? 'You do not have any invoices at this time.'
+              : 'Issue your first itemized invoice linked to an active lease.'}
+          </p>
+          {!isTenant && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create Invoice
+            </Button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">

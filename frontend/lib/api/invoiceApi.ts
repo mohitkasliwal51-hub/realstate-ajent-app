@@ -81,6 +81,11 @@ export const invoiceApi = {
     return response.data.data;
   },
 
+  getMyInvoices: async (): Promise<Invoice[]> => {
+    const response = await apiClient.get('/api/v1/invoices/me');
+    return response.data.data;
+  },
+
   getInvoiceById: async (id: string): Promise<Invoice> => {
     const response = await apiClient.get(`/api/v1/invoices/${id}`);
     return response.data.data;

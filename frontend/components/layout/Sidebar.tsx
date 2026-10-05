@@ -29,20 +29,34 @@ export const Sidebar: React.FC = () => {
   const brokerMode = isBrokerMode(user);
   const orgMode = getOrgMode(user);
 
-  const navItems = [
+  const isTenant = user?.role === 'TENANT';
+  const isAgent = user?.role === 'AGENT';
+  const isAdminOrPM = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'PROPERTY_MANAGER';
+
+  const tenantNavItems = [
+    { name: 'My Residence', href: '/app/tenant', icon: LayoutDashboard },
+    { name: 'My Invoices', href: '/app/invoices', icon: FileSpreadsheet },
+    { name: 'Payment Receipts', href: '/app/receipts', icon: Receipt },
+    { name: 'Maintenance Tickets', href: '/app/tickets', icon: Wrench },
+    { name: 'Meter Readings', href: '/app/meter-readings', icon: Zap },
+  ];
+
+  const staffNavItems = [
     { name: 'Dashboard', href: '/app', icon: LayoutDashboard },
     { name: 'Properties', href: '/app/properties', icon: Building2 },
-    ...(brokerMode ? [{ name: 'Landlords', href: '/app/landlords', icon: Briefcase }] : []),
+    ...(brokerMode && isAdminOrPM ? [{ name: 'Landlords', href: '/app/landlords', icon: Briefcase }] : []),
     { name: 'Tenants', href: '/app/tenants', icon: Users },
     { name: 'Leases', href: '/app/leases', icon: FileText },
     { name: 'Invoices', href: '/app/invoices', icon: FileSpreadsheet },
     { name: 'Receipts', href: '/app/receipts', icon: Receipt },
-    ...(brokerMode ? [{ name: 'Landlord Payouts', href: '/app/payouts', icon: Wallet }] : []),
+    ...(brokerMode && isAdminOrPM ? [{ name: 'Landlord Payouts', href: '/app/payouts', icon: Wallet }] : []),
     { name: 'Meter Readings', href: '/app/meter-readings', icon: Zap },
     { name: 'Tickets', href: '/app/tickets', icon: Wrench },
     { name: 'CRM Leads', href: '/app/leads', icon: UserCheck },
-    { name: 'Settings', href: '/app/settings', icon: Settings },
+    ...(isAdminOrPM ? [{ name: 'Settings', href: '/app/settings', icon: Settings }] : []),
   ];
+
+  const navItems = isTenant ? tenantNavItems : staffNavItems;
 
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen border-r border-slate-800 shrink-0">
@@ -55,23 +69,23 @@ export const Sidebar: React.FC = () => {
           <div>
             <span className="font-bold text-white tracking-tight text-lg">StayFile</span>
             <span className="block text-[10px] text-blue-400 font-semibold tracking-wider uppercase">
-              Property OS
+              {isTenant ? 'Tenant Portal' : 'Property OS'}
             </span>
           </div>
         </div>
         <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded bg-slate-800 text-slate-300 border border-slate-700">
-          {orgMode}
+          {isTenant ? 'TENANT' : orgMode}
         </span>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         <div className="px-3 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-          Management
+          {isTenant ? 'Tenant Services' : 'Management'}
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/app' && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || (item.href !== '/app' && item.href !== '/app/tenant' && pathname.startsWith(item.href));
 
           return (
             <Link
@@ -95,18 +109,22 @@ export const Sidebar: React.FC = () => {
           );
         })}
 
-        {/* Public Showcase Link */}
-        <div className="pt-4 px-3 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-          Public Portal
-        </div>
-        <Link
-          href={`/p/${user?.organizationSlug || 'default-org'}`}
-          target="_blank"
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all"
-        >
-          <ExternalLink className="w-4 h-4 text-slate-400" />
-          Public Showcase
-        </Link>
+        {/* Public Showcase Link (Staff only) */}
+        {!isTenant && (
+          <>
+            <div className="pt-4 px-3 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Public Portal
+            </div>
+            <Link
+              href={`/p/${user?.organizationSlug || 'default-org'}`}
+              target="_blank"
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all"
+            >
+              <ExternalLink className="w-4 h-4 text-slate-400" />
+              Public Showcase
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* User Footer */}
