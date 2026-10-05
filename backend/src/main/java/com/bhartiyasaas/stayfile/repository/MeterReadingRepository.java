@@ -11,9 +11,11 @@ import com.bhartiyasaas.stayfile.entity.MeterReading;
 
 @Repository
 public interface MeterReadingRepository extends JpaRepository<MeterReading, UUID> {
-        List<MeterReading> findByUnitIdAndOrganizationId(UUID unitId, UUID organizationId);
-        List<MeterReading> findByUnitIdAndOrganizationIdAndIsBilledFalseOrderByReadingDateAsc(UUID unitId, UUID organizationId);
-        Optional<MeterReading> findTopByUnitIdAndOrganizationIdAndMeterTypeOrderByReadingDateDesc(
+    List<MeterReading> findByUnitIdAndOrganizationId(UUID unitId, UUID organizationId);
+    List<MeterReading> findByUnitIdAndOrganizationIdAndIsBilledFalseOrderByReadingDateAsc(UUID unitId, UUID organizationId);
+    List<MeterReading> findByPropertyIdAndOrganizationId(UUID propertyId, UUID organizationId);
+    List<MeterReading> findByPropertyIdAndOrganizationIdAndIsBilledFalse(UUID propertyId, UUID organizationId);
+    Optional<MeterReading> findTopByUnitIdAndOrganizationIdAndMeterTypeOrderByReadingDateDesc(
             UUID unitId, UUID organizationId, String meterType);
     Optional<MeterReading> findByIdAndOrganizationId(UUID id, UUID organizationId);
     List<MeterReading> findByOrganizationIdOrderByReadingDateDesc(UUID organizationId);

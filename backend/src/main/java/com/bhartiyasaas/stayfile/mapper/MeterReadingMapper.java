@@ -13,17 +13,21 @@ import java.util.List;
 public interface MeterReadingMapper {
 
     @Mapping(target = "organizationId", source = "organization.id")
+    @Mapping(target = "propertyId", source = "property.id")
     @Mapping(target = "unitId", source = "unit.id")
+    @Mapping(target = "unitNumber", source = "unit.unitNumber")
     MeterReadingResponse toResponse(MeterReading reading);
 
     List<MeterReadingResponse> toResponseList(List<MeterReading> readings);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "organization", ignore = true)
+    @Mapping(target = "property", ignore = true)
     @Mapping(target = "unit", ignore = true)
     @Mapping(target = "unitsConsumed", ignore = true)
     @Mapping(target = "totalCharge", ignore = true)
     @Mapping(target = "isBilled", ignore = true)
+    @Mapping(target = "submittedByUserId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     MeterReading toEntity(MeterReadingRequest request);

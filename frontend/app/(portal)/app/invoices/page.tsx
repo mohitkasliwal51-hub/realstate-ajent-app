@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { UtilitySplitAuditCard } from '@/components/invoice/UtilitySplitAuditCard';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 
 export default function InvoicesPage() {
@@ -174,24 +175,41 @@ export default function InvoicesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-slate-900">{inv.invoiceNumber}</span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {inv.billingPeriodStart} to {inv.billingPeriodEnd}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">{inv.dueDate}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900">
-                      {formatCurrency(inv.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(inv.status)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <Button size="sm" variant="secondary" onClick={() => handleDownloadPdf(inv.id)}>
-                        <Download className="w-3.5 h-3.5 mr-1" /> PDF
-                      </Button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={inv.id}>
+                    <tr className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{inv.invoiceNumber}</span>
+                          {inv.invoiceType === 'UTILITY_ONLY' && (
+                            <Badge variant="info">Utility Split</Badge>
+                          )}
+                          {inv.invoiceType === 'MONTHLY_RENT' && (
+                            <Badge variant="purple">Rent</Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{inv.dueDate}</td>
+                      <td className="px-6 py-4 font-bold text-slate-900">
+                        {formatCurrency(inv.totalAmount)}
+                      </td>
+                      <td className="px-6 py-4">{getStatusBadge(inv.status)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <Button size="sm" variant="secondary" onClick={() => handleDownloadPdf(inv.id)}>
+                          <Download className="w-3.5 h-3.5 mr-1" /> PDF
+                        </Button>
+                      </td>
+                    </tr>
+                    {inv.metadata && (
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={6} className="px-6 py-1.5">
+                          <UtilitySplitAuditCard metadataString={inv.metadata} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

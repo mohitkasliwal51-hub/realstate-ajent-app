@@ -59,6 +59,8 @@ class TenantIsolationSecurityTests {
     @Mock
     private UnitRepository unitRepository;
     @Mock
+    private com.bhartiyasaas.stayfile.repository.PropertyRepository propertyRepository;
+    @Mock
     private OrganizationRepository organizationRepository;
     @Mock
     private MaintenanceTicketRepository maintenanceTicketRepository;
@@ -139,7 +141,7 @@ class TenantIsolationSecurityTests {
     void meterReading_tenantCannotAccessReadingsForUnitTheyDoNotLease() {
         MeterReadingServiceImpl readingService = new MeterReadingServiceImpl(
                 meterReadingRepository, unitRepository, organizationRepository, meterReadingMapper,
-                leaseRepository, tenantRepository, tenantAccessService
+                leaseRepository, tenantRepository, tenantAccessService, propertyRepository
         );
 
         MeterReading reading = MeterReading.builder()

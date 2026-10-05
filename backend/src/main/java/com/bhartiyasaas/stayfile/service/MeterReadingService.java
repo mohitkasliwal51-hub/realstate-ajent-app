@@ -11,6 +11,8 @@ public interface MeterReadingService {
     MeterReadingResponse createMeterReading(MeterReadingRequest request, SecurityUser currentUser);
     MeterReadingResponse getMeterReadingById(UUID id, SecurityUser currentUser);
     List<MeterReadingResponse> getMeterReadingsByUnit(UUID unitId, SecurityUser currentUser);
+    List<MeterReadingResponse> getMeterReadingsByProperty(UUID propertyId, SecurityUser currentUser);
     List<MeterReadingResponse> getMeterReadingsByLease(UUID leaseId, SecurityUser currentUser);
     List<MeterReadingResponse> getMeterReadingsByOrganization(SecurityUser currentUser);
+    MeterReadingResponse verifyMeterReading(UUID id, String status, String disputeReason, SecurityUser currentUser);
 }

@@ -487,12 +487,18 @@ ALTER TABLE public.leases
         FOREIGN KEY (agreement_template_id, organization_id)
         REFERENCES public.agreement_templates (id, organization_id);
 
--- Sub-Meter Utilities Reading Tracker (Electricity & Water Sub-Meters)
+-- Sub-Meter Utilities Reading Tracker (Electricity & Water Sub-Meters with Solution A Photo Proof)
 CREATE TABLE IF NOT EXISTS public.meter_readings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    unit_id UUID NOT NULL REFERENCES public.units(id) ON DELETE CASCADE,
+    property_id UUID REFERENCES public.properties(id) ON DELETE CASCADE,
+    unit_id UUID REFERENCES public.units(id) ON DELETE CASCADE,
     meter_type TEXT NOT NULL DEFAULT 'ELECTRICITY', -- ELECTRICITY / WATER / GAS
+    meter_scope TEXT NOT NULL DEFAULT 'ROOM_AC',    -- MASTER_DISCOM / ROOM_AC / HALL_AC / COMMON_AREA
+    photo_url TEXT,                                 -- Solution A: Meter dial photo proof URL
+    submitted_by_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    verification_status TEXT NOT NULL DEFAULT 'APPROVED', -- PENDING_VERIFICATION / APPROVED / DISPUTED
+    dispute_reason TEXT,
     previous_reading DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     current_reading DECIMAL(10, 2) NOT NULL,
     units_consumed DECIMAL(10, 2) GENERATED ALWAYS AS (current_reading - previous_reading) STORED,

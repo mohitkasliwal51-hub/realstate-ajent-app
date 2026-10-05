@@ -46,9 +46,28 @@ export interface Invoice {
   status: InvoiceStatus;
   invoicePdfUrl?: string;
   notes?: string;
+  metadata?: string;
   lineItems: InvoiceLineItem[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface UtilitySplitMetadata {
+  utilityType: string;
+  splitFormula: string;
+  masterDiscomUnits: number;
+  totalAcUnits: number;
+  commonAreaUnits: number;
+  totalPropertyResidents: number;
+  tenantCommonShareUnits: number;
+  commonShareAmount: number;
+  roomAcTotalUnits: number;
+  roomOccupantCount: number;
+  tenantRoomAcUnits: number;
+  roomAcAmount: number;
+  ratePerUnit: number;
+  submeterPhotoUrl?: string;
+  masterMeterPhotoUrl?: string;
 }
 
 export interface InvoiceLineItemPayload {

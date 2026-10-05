@@ -28,12 +28,33 @@ public class MeterReading {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "unit_id", nullable = false)
+    @JoinColumn(name = "property_id")
+    private Property property;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id")
     private Unit unit;
 
     @Column(name = "meter_type", nullable = false)
     @Builder.Default
     private String meterType = "ELECTRICITY";
+
+    @Column(name = "meter_scope", nullable = false)
+    @Builder.Default
+    private String meterScope = "ROOM_AC";
+
+    @Column(name = "photo_url")
+    private String photoUrl;
+
+    @Column(name = "submitted_by_user_id")
+    private UUID submittedByUserId;
+
+    @Column(name = "verification_status", nullable = false)
+    @Builder.Default
+    private String verificationStatus = "APPROVED";
+
+    @Column(name = "dispute_reason")
+    private String disputeReason;
 
     @Column(name = "previous_reading", nullable = false)
     @Builder.Default

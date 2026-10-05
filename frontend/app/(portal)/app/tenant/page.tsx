@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { User, FileText, Receipt as ReceiptIcon, Download, Wrench, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { User, FileText, Receipt as ReceiptIcon, Download, Wrench, ShieldCheck, CheckCircle2, FileSpreadsheet, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { tenantApi, Tenant } from '@/lib/api/tenantApi';
 import { leaseApi, Lease } from '@/lib/api/leaseApi';
 import { receiptApi, Receipt } from '@/lib/api/receiptApi';
+import { invoiceApi, Invoice } from '@/lib/api/invoiceApi';
 import { ticketApi, TicketCreatePayload } from '@/lib/api/ticketApi';
+import { UtilitySplitAuditCard } from '@/components/invoice/UtilitySplitAuditCard';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -18,6 +20,7 @@ export default function TenantSelfPortalPage() {
   const [profile, setProfile] = useState<Tenant | null>(null);
   const [lease, setLease] = useState<Lease | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
@@ -34,18 +37,33 @@ export default function TenantSelfPortalPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [profileRes, leaseRes, receiptsRes] = await Promise.all([
+      const [profileRes, leaseRes, receiptsRes, invoicesRes] = await Promise.all([
         tenantApi.getMyProfile().catch(() => null),
         leaseApi.getMyLease().catch(() => null),
         receiptApi.getMyReceipts().catch(() => []),
+        invoiceApi.getMyInvoices().catch(() => []),
       ]);
       setProfile(profileRes);
       setLease(leaseRes);
       setReceipts(receiptsRes || []);
+      setInvoices(invoicesRes || []);
     } catch (err) {
       console.error('Failed to load tenant portal data', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadInvoicePdf = async (invoiceId: string) => {
+    try {
+      const blob = await invoiceApi.downloadPdf(invoiceId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${invoiceId}.pdf`;
+      a.click();
+    } catch (err) {
+      alert('Failed to download invoice PDF');
     }
   };
 
@@ -244,6 +262,91 @@ export default function TenantSelfPortalPage() {
                       </Button>
                     </td>
                   </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Invoices & Utility Bills */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900">Your Invoices & Utility Bills</h3>
+              <p className="text-[11px] text-slate-400">Monthly rent and transparent multi-tier utility splits</p>
+            </div>
+          </div>
+        </div>
+
+        {invoices.length === 0 ? (
+          <p className="text-xs text-slate-500 py-4 text-center">No invoices issued yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 uppercase tracking-wider text-slate-500 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Invoice #</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Billing Period</th>
+                  <th className="px-4 py-3">Due Date</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Download</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {invoices.map((inv) => (
+                  <React.Fragment key={inv.id}>
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-900">{inv.invoiceNumber}</td>
+                      <td className="px-4 py-3">
+                        {inv.invoiceType === 'UTILITY_ONLY' ? (
+                          <Badge variant="info">Utility Split</Badge>
+                        ) : inv.invoiceType === 'MONTHLY_RENT' ? (
+                          <Badge variant="purple">Rent</Badge>
+                        ) : (
+                          <Badge variant="default">{inv.invoiceType}</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{inv.dueDate}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900">{formatCurrency(inv.totalAmount)}</td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant={
+                            inv.status === 'PAID'
+                              ? 'success'
+                              : inv.status === 'OVERDUE'
+                              ? 'danger'
+                              : inv.status === 'PARTIAL'
+                              ? 'warning'
+                              : 'info'
+                          }
+                        >
+                          {inv.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button size="sm" variant="secondary" onClick={() => handleDownloadInvoicePdf(inv.id)}>
+                          <Download className="w-3.5 h-3.5 mr-1" /> PDF
+                        </Button>
+                      </td>
+                    </tr>
+                    {inv.metadata && (
+                      <tr className="bg-slate-50/40">
+                        <td colSpan={7} className="px-4 py-2">
+                          <UtilitySplitAuditCard metadataString={inv.metadata} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

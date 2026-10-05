@@ -15,12 +15,19 @@ import java.util.UUID;
 @Builder
 public class MeterReadingRequest {
 
-    @NotNull(message = "Unit ID is required")
+    private UUID propertyId;
     private UUID unitId;
 
     @Builder.Default
     @Pattern(regexp = "ELECTRICITY|WATER|GAS", message = "Meter type must be ELECTRICITY, WATER, or GAS")
     private String meterType = "ELECTRICITY";
+
+    @Builder.Default
+    private String meterScope = "ROOM_AC"; // MASTER_DISCOM, ROOM_AC, HALL_AC, COMMON_AREA
+
+    private String photoUrl;
+    private String verificationStatus;
+    private String disputeReason;
 
     @DecimalMin(value = "0.00", message = "Previous reading cannot be negative")
     private BigDecimal previousReading;

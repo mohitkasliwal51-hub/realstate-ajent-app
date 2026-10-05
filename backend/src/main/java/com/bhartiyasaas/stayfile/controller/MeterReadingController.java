@@ -23,8 +23,9 @@ import java.util.UUID;
 public class MeterReadingController {
 
     private final MeterReadingService meterReadingService;
+    private final com.bhartiyasaas.stayfile.service.UtilitySplitService utilitySplitService;
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @PostMapping
     public ResponseEntity<ApiResponse<MeterReadingResponse>> createMeterReading(
             @Valid @RequestBody MeterReadingRequest request,
@@ -52,6 +53,15 @@ public class MeterReadingController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
+    @GetMapping("/property/{propertyId}")
+    public ResponseEntity<ApiResponse<List<MeterReadingResponse>>> getMeterReadingsByProperty(
+            @PathVariable UUID propertyId,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<MeterReadingResponse> response = meterReadingService.getMeterReadingsByProperty(propertyId, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/lease/{leaseId}")
     public ResponseEntity<ApiResponse<List<MeterReadingResponse>>> getMeterReadingsByLease(
@@ -67,5 +77,27 @@ public class MeterReadingController {
             @AuthenticationPrincipal SecurityUser currentUser) {
         List<MeterReadingResponse> response = meterReadingService.getMeterReadingsByOrganization(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
+    @PatchMapping("/{id}/verify")
+    public ResponseEntity<ApiResponse<MeterReadingResponse>> verifyMeterReading(
+            @PathVariable UUID id,
+            @RequestParam String status,
+            @RequestParam(required = false) String disputeReason,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        MeterReadingResponse response = meterReadingService.verifyMeterReading(id, status, disputeReason, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response, "Meter reading verification status updated"));
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
+    @PostMapping("/split/property/{propertyId}")
+    public ResponseEntity<ApiResponse<List<com.bhartiyasaas.stayfile.dto.response.InvoiceResponse>>> runUtilitySplit(
+            @PathVariable UUID propertyId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate billingMonth,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<com.bhartiyasaas.stayfile.dto.response.InvoiceResponse> responses =
+                utilitySplitService.calculateAndGeneratePgUtilityInvoices(propertyId, billingMonth, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(responses, "Utility invoices generated successfully via PG split engine"));
     }
 }

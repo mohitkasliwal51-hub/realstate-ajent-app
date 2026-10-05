@@ -265,25 +265,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             lineItems.add(rentItem);
             subtotal = subtotal.add(lease.getMonthlyRent());
 
-            // 2. Utility / Meter Reading Line Items
-            List<MeterReading> readings = meterReadingRepository.findByUnitIdAndOrganizationIdAndIsBilledFalseOrderByReadingDateAsc(lease.getUnit().getId(), organizationId);
-            for (MeterReading reading : readings) {
-                if (reading.getTotalCharge() != null && reading.getTotalCharge().compareTo(BigDecimal.ZERO) > 0) {
-                    InvoiceLineItem utilityItem = new InvoiceLineItem();
-                    utilityItem.setOrganization(organization);
-                    utilityItem.setInvoice(invoice);
-                    utilityItem.setChargeType("WATER".equalsIgnoreCase(reading.getMeterType()) ? ChargeType.WATER_BILL : ChargeType.ELECTRICITY_BILL);
-                    utilityItem.setDescription(reading.getMeterType() + " Consumption (" + reading.getUnitsConsumed() + " units @ Rs. " + reading.getRatePerUnit() + ")");
-                    utilityItem.setQuantity(reading.getUnitsConsumed() != null ? reading.getUnitsConsumed() : BigDecimal.ONE);
-                    utilityItem.setUnitPrice(reading.getRatePerUnit() != null ? reading.getRatePerUnit() : reading.getTotalCharge());
-                    utilityItem.setAmount(reading.getTotalCharge());
-                    lineItems.add(utilityItem);
-                    subtotal = subtotal.add(reading.getTotalCharge());
-                    reading.setIsBilled(true);
-                }
-            }
-
-            // 3. Maintenance Fee
+            // 2. Maintenance Fee (if recurring monthly)
                 if (lease.getMaintenanceFeeType() == MaintenanceFeeType.MONTHLY
                     && lease.getMaintenanceFeeAmount() != null && lease.getMaintenanceFeeAmount().compareTo(BigDecimal.ZERO) > 0) {
                 InvoiceLineItem maintItem = new InvoiceLineItem();

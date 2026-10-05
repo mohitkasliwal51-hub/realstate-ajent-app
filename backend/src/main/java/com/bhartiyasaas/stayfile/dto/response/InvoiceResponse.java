@@ -35,6 +35,7 @@ public class InvoiceResponse {
     private InvoiceStatus status;
     private String invoicePdfUrl;
     private String notes;
+    private String metadata;
     private List<InvoiceLineItemResponse> lineItems;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

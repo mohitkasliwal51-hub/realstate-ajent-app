@@ -15,8 +15,15 @@ public class MeterReadingResponse {
 
     private UUID id;
     private UUID organizationId;
+    private UUID propertyId;
     private UUID unitId;
+    private String unitNumber;
     private String meterType;
+    private String meterScope;
+    private String photoUrl;
+    private UUID submittedByUserId;
+    private String verificationStatus;
+    private String disputeReason;
     private BigDecimal previousReading;
     private BigDecimal currentReading;
     private BigDecimal unitsConsumed;
