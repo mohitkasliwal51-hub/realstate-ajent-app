@@ -10,16 +10,20 @@ import com.bhartiyasaas.stayfile.entity.MeterReading;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Property;
 import com.bhartiyasaas.stayfile.entity.Unit;
+import com.bhartiyasaas.stayfile.entity.enums.UserRole;
+import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.MeterReadingMapper;
+import com.bhartiyasaas.stayfile.repository.LeaseRepository;
 import com.bhartiyasaas.stayfile.repository.MeterReadingRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
+import com.bhartiyasaas.stayfile.repository.PropertyRepository;
+import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
-import com.bhartiyasaas.stayfile.repository.LeaseRepository;
-import com.bhartiyasaas.stayfile.repository.PropertyRepository;
 import com.bhartiyasaas.stayfile.service.MeterReadingService;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,9 +39,8 @@ public class MeterReadingServiceImpl implements MeterReadingService {
     private final OrganizationRepository organizationRepository;
     private final MeterReadingMapper meterReadingMapper;
     private final LeaseRepository leaseRepository;
-    private final com.bhartiyasaas.stayfile.repository.TenantRepository tenantRepository;
+    private final TenantRepository tenantRepository;
     private final TenantAccessService tenantAccessService;
-
     private final PropertyRepository propertyRepository;
 
     @Override
@@ -54,17 +57,17 @@ public class MeterReadingServiceImpl implements MeterReadingService {
             unit = unitRepository.findByIdAndOrganizationId(request.getUnitId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + request.getUnitId()));
             property = unit.getProperty();
-            if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+            if (currentUser.getRole() == UserRole.TENANT) {
                 validateTenantUnitAccess(unit.getId(), currentUser);
             }
         } else if (request.getPropertyId() != null) {
-            if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
-                throw new org.springframework.security.access.AccessDeniedException("Tenants can only submit sub-meter readings for their assigned unit");
+            if (currentUser.getRole() == UserRole.TENANT) {
+                throw new AccessDeniedException("Tenants can only submit sub-meter readings for their assigned unit");
             }
             property = propertyRepository.findByIdAndOrganizationId(request.getPropertyId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + request.getPropertyId()));
         } else {
-            throw new com.bhartiyasaas.stayfile.exception.BadRequestException("Either Unit ID or Property ID is required for a meter reading");
+            throw new BadRequestException("Either Unit ID or Property ID is required for a meter reading");
         }
 
         String meterType = request.getMeterType() == null || request.getMeterType().isBlank()
@@ -96,8 +99,8 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         meterReading.setMeterScope(meterScope);
         meterReading.setPhotoUrl(request.getPhotoUrl());
         meterReading.setSubmittedByUserId(currentUser.getId());
-        meterReading.setVerificationStatus(currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT
-                ? "PENDING_VERIFICATION" : "APPROVED");
+        meterReading.setVerificationStatus(currentUser.getRole() == UserRole.TENANT
+                ? "PENDING" : "VERIFIED");
         meterReading.setPreviousReading(previous);
         meterReading.setCurrentReading(request.getCurrentReading());
         meterReading.setRatePerUnit(request.getRatePerUnit() != null ? request.getRatePerUnit() : BigDecimal.valueOf(10.00));
@@ -114,7 +117,7 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         UUID organizationId = currentUser.getOrganizationId();
         MeterReading meterReading = meterReadingRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Meter reading not found with ID: " + id));
-        if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+        if (currentUser.getRole() == UserRole.TENANT) {
             validateTenantUnitAccess(meterReading.getUnit().getId(), currentUser);
         }
         return meterReadingMapper.toResponse(meterReading);
@@ -126,7 +129,7 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         UUID organizationId = currentUser.getOrganizationId();
         unitRepository.findByIdAndOrganizationId(unitId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Unit not found with ID: " + unitId));
-        if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+        if (currentUser.getRole() == UserRole.TENANT) {
             validateTenantUnitAccess(unitId, currentUser);
         }
         return meterReadingMapper.toResponseList(meterReadingRepository.findByUnitIdAndOrganizationId(unitId, organizationId));
@@ -166,13 +169,20 @@ public class MeterReadingServiceImpl implements MeterReadingService {
         MeterReading meterReading = meterReadingRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Meter reading not found with ID: " + id));
 
-        if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+        if (currentUser.getRole() == UserRole.TENANT) {
             if (meterReading.getUnit() != null) {
                 validateTenantUnitAccess(meterReading.getUnit().getId(), currentUser);
             }
         }
 
-        String verifiedStatus = "DISPUTED".equalsIgnoreCase(status) ? "DISPUTED" : "APPROVED";
+        String verifiedStatus;
+        if ("DISPUTED".equalsIgnoreCase(status)) {
+            verifiedStatus = "DISPUTED";
+        } else if ("APPROVED".equalsIgnoreCase(status) || "VERIFIED".equalsIgnoreCase(status)) {
+            verifiedStatus = "VERIFIED";
+        } else {
+            verifiedStatus = "PENDING";
+        }
         meterReading.setVerificationStatus(verifiedStatus);
         if ("DISPUTED".equals(verifiedStatus)) {
             meterReading.setDisputeReason(disputeReason != null ? disputeReason : "Disputed by resident");
@@ -187,12 +197,12 @@ public class MeterReadingServiceImpl implements MeterReadingService {
     private void validateTenantUnitAccess(UUID unitId, SecurityUser currentUser) {
         var tenantOpt = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), currentUser.getOrganizationId());
         if (tenantOpt.isEmpty()) {
-            throw new org.springframework.security.access.AccessDeniedException("Access denied: No tenant profile found");
+            throw new AccessDeniedException("Access denied: No tenant profile found");
         }
         boolean hasLeaseOnUnit = leaseRepository.findByTenantId(tenantOpt.get().getId()).stream()
                 .anyMatch(lease -> lease.getUnit() != null && lease.getUnit().getId().equals(unitId));
         if (!hasLeaseOnUnit) {
-            throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view meter readings for your assigned unit");
+            throw new AccessDeniedException("Access denied: You can only view meter readings for your assigned unit");
         }
     }
 }

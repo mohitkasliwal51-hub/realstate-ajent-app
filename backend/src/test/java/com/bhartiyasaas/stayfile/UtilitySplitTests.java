@@ -33,8 +33,6 @@ class UtilitySplitTests {
     @Mock
     private PropertyRepository propertyRepository;
     @Mock
-    private UnitRepository unitRepository;
-    @Mock
     private LeaseRepository leaseRepository;
     @Mock
     private MeterReadingRepository meterReadingRepository;

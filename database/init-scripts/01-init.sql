@@ -497,7 +497,7 @@ CREATE TABLE IF NOT EXISTS public.meter_readings (
     meter_scope TEXT NOT NULL DEFAULT 'ROOM_AC',    -- MASTER_DISCOM / ROOM_AC / HALL_AC / COMMON_AREA
     photo_url TEXT,                                 -- Solution A: Meter dial photo proof URL
     submitted_by_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    verification_status TEXT NOT NULL DEFAULT 'APPROVED', -- PENDING_VERIFICATION / APPROVED / DISPUTED
+    verification_status TEXT NOT NULL DEFAULT 'VERIFIED', -- PENDING / VERIFIED / DISPUTED
     dispute_reason TEXT,
     previous_reading DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     current_reading DECIMAL(10, 2) NOT NULL,

@@ -10,10 +10,14 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bhartiyasaas.stayfile.dto.request.MeterReadingRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
+import com.bhartiyasaas.stayfile.dto.response.InvoiceResponse;
 import com.bhartiyasaas.stayfile.dto.response.MeterReadingResponse;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.service.MeterReadingService;
+import com.bhartiyasaas.stayfile.service.UtilitySplitService;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +27,7 @@ import java.util.UUID;
 public class MeterReadingController {
 
     private final MeterReadingService meterReadingService;
-    private final com.bhartiyasaas.stayfile.service.UtilitySplitService utilitySplitService;
+    private final UtilitySplitService utilitySplitService;
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @PostMapping
@@ -92,11 +96,11 @@ public class MeterReadingController {
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER')")
     @PostMapping("/split/property/{propertyId}")
-    public ResponseEntity<ApiResponse<List<com.bhartiyasaas.stayfile.dto.response.InvoiceResponse>>> runUtilitySplit(
+    public ResponseEntity<ApiResponse<List<InvoiceResponse>>> runUtilitySplit(
             @PathVariable UUID propertyId,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate billingMonth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate billingMonth,
             @AuthenticationPrincipal SecurityUser currentUser) {
-        List<com.bhartiyasaas.stayfile.dto.response.InvoiceResponse> responses =
+        List<InvoiceResponse> responses =
                 utilitySplitService.calculateAndGeneratePgUtilityInvoices(propertyId, billingMonth, currentUser);
         return ResponseEntity.ok(ApiResponse.success(responses, "Utility invoices generated successfully via PG split engine"));
     }

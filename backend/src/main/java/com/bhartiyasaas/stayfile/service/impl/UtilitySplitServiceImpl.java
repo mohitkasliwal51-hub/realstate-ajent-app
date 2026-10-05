@@ -13,6 +13,7 @@ import com.bhartiyasaas.stayfile.entity.enums.ChargeType;
 import com.bhartiyasaas.stayfile.entity.enums.InvoiceStatus;
 import com.bhartiyasaas.stayfile.entity.enums.InvoiceType;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.entity.enums.UserRole;
 import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.InvoiceMapper;
@@ -32,7 +33,6 @@ import java.util.stream.Collectors;
 public class UtilitySplitServiceImpl implements UtilitySplitService {
 
     private final PropertyRepository propertyRepository;
-    private final UnitRepository unitRepository;
     private final LeaseRepository leaseRepository;
     private final MeterReadingRepository meterReadingRepository;
     private final InvoiceRepository invoiceRepository;
@@ -349,7 +349,7 @@ public class UtilitySplitServiceImpl implements UtilitySplitService {
                     Profile systemProfile = Profile.builder()
                             .id(UUID.randomUUID())
                             .organization(property.getOrganization())
-                            .role(com.bhartiyasaas.stayfile.entity.enums.UserRole.ADMIN)
+                            .role(UserRole.ADMIN)
                             .build();
                     SecurityUser systemUser = new SecurityUser(systemProfile);
 

@@ -163,7 +163,7 @@ class TenantIsolationSecurityTests {
     void getInvoicesForCurrentUser_returnsInvoicesScopedToCallingTenantProfile() {
         InvoiceServiceImpl invoiceService = new InvoiceServiceImpl(
                 invoiceRepository, leaseRepository, organizationRepository,
-                tenantRepository, unitRepository, meterReadingRepository,
+                tenantRepository, unitRepository,
                 invoiceMapper, null, tenantAccessService
         );
 

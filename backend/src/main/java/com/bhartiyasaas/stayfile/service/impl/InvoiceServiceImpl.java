@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -16,7 +17,6 @@ import com.bhartiyasaas.stayfile.dto.response.InvoiceResponse;
 import com.bhartiyasaas.stayfile.entity.Invoice;
 import com.bhartiyasaas.stayfile.entity.InvoiceLineItem;
 import com.bhartiyasaas.stayfile.entity.Lease;
-import com.bhartiyasaas.stayfile.entity.MeterReading;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Tenant;
 import com.bhartiyasaas.stayfile.entity.Unit;
@@ -30,7 +30,6 @@ import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.InvoiceMapper;
 import com.bhartiyasaas.stayfile.repository.InvoiceRepository;
 import com.bhartiyasaas.stayfile.repository.LeaseRepository;
-import com.bhartiyasaas.stayfile.repository.MeterReadingRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.TenantRepository;
 import com.bhartiyasaas.stayfile.repository.UnitRepository;
@@ -50,7 +49,6 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final OrganizationRepository organizationRepository;
     private final TenantRepository tenantRepository;
     private final UnitRepository unitRepository;
-    private final MeterReadingRepository meterReadingRepository;
     private final InvoiceMapper invoiceMapper;
     private final PdfGeneratorService pdfGeneratorService;
     private final TenantAccessService tenantAccessService;
@@ -212,12 +210,17 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceMapper.toResponse(invoiceRepository.save(invoice));
         }
 
-        @Override
-        @Transactional
+    @Override
+    @Transactional
     public List<InvoiceResponse> generateMonthlyInvoicesForOrganization(SecurityUser currentUser) {
-        UUID organizationId = currentUser.getOrganizationId();
-        Organization organization = organizationRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + organizationId));
+        return generateMonthlyInvoicesForOrgId(currentUser.getOrganizationId());
+    }
+
+    private List<InvoiceResponse> generateMonthlyInvoicesForOrgId(UUID organizationId) {
+        Organization organization = organizationRepository.findById(organizationId).orElse(null);
+        if (organization == null) {
+            return Collections.emptyList();
+        }
 
         List<Lease> activeLeases = leaseRepository.findByOrganizationId(organizationId).stream()
                 .filter(l -> l.getStatus() == LeaseStatus.ACTIVE)
@@ -357,59 +360,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             } catch (Exception e) {
                 // Log and continue for next organization
             }
-        }
-    }
-
-    private void generateMonthlyInvoicesForOrgId(UUID organizationId) {
-        Organization organization = organizationRepository.findById(organizationId).orElse(null);
-        if (organization == null) return;
-
-        List<Lease> activeLeases = leaseRepository.findByOrganizationId(organizationId).stream()
-                .filter(l -> l.getStatus() == LeaseStatus.ACTIVE)
-                .collect(Collectors.toList());
-
-        LocalDate today = LocalDate.now();
-        LocalDate startOfMonth = today.withDayOfMonth(1);
-        LocalDate endOfMonth = today.withDayOfMonth(today.lengthOfMonth());
-
-        for (Lease lease : activeLeases) {
-            Invoice existing = invoiceRepository.findByLeaseIdAndOrganizationIdAndBillingPeriodStartAndInvoiceType(
-                lease.getId(), organizationId, startOfMonth, InvoiceType.MONTHLY_RENT).orElse(null);
-            if (existing != null) continue;
-
-            Invoice invoice = new Invoice();
-            invoice.setOrganization(organization);
-            invoice.setLease(lease);
-            invoice.setTenant(lease.getTenant());
-            invoice.setUnit(lease.getUnit());
-            invoice.setInvoiceNumber(createInvoiceNumber("MONTHLY"));
-            invoice.setInvoiceType(InvoiceType.MONTHLY_RENT);
-            invoice.setStatus(InvoiceStatus.UNPAID);
-            invoice.setBillingPeriodStart(startOfMonth);
-            invoice.setBillingPeriodEnd(endOfMonth);
-            invoice.setDueDate(startOfMonth.withDayOfMonth(Math.min(lease.getRentDueDay() != null ? lease.getRentDueDay() : 5, endOfMonth.getDayOfMonth())));
-            invoice.setPaidAmount(BigDecimal.ZERO);
-
-            List<InvoiceLineItem> lineItems = new ArrayList<>();
-            BigDecimal subtotal = BigDecimal.ZERO;
-
-            InvoiceLineItem rentItem = new InvoiceLineItem();
-            rentItem.setOrganization(organization);
-            rentItem.setInvoice(invoice);
-            rentItem.setChargeType(ChargeType.RENT);
-            rentItem.setDescription("Monthly Rent - " + startOfMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
-            rentItem.setQuantity(BigDecimal.ONE);
-            rentItem.setUnitPrice(lease.getMonthlyRent());
-            rentItem.setAmount(lease.getMonthlyRent());
-            lineItems.add(rentItem);
-            subtotal = subtotal.add(lease.getMonthlyRent());
-
-            invoice.setSubtotalAmount(subtotal);
-            invoice.setTaxAmount(BigDecimal.ZERO);
-            invoice.setTotalAmount(subtotal);
-            invoice.setLineItems(lineItems);
-
-            invoiceRepository.save(invoice);
         }
     }
 }

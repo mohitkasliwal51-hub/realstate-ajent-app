@@ -10,10 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  ExternalLink,
-  ShieldCheck,
-  Building2,
-  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
@@ -255,6 +251,7 @@ export default function MeterReadingsPage() {
   const getVerificationBadge = (status?: VerificationStatus) => {
     switch (status) {
       case 'VERIFIED':
+      case 'APPROVED':
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
             <CheckCircle2 className="w-3 h-3" /> Verified
@@ -385,7 +382,7 @@ export default function MeterReadingsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {r.verificationStatus === 'PENDING' && (
+                        {(r.verificationStatus === 'PENDING' || r.verificationStatus === 'PENDING_VERIFICATION') && (
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
@@ -408,7 +405,7 @@ export default function MeterReadingsPage() {
                             </button>
                           </div>
                         )}
-                        {r.verificationStatus === 'VERIFIED' && (
+                        {(r.verificationStatus === 'VERIFIED' || r.verificationStatus === 'APPROVED') && (
                           <span className="text-emerald-600 text-[11px] font-semibold">Locked</span>
                         )}
                         {r.verificationStatus === 'DISPUTED' && !isTenant && (

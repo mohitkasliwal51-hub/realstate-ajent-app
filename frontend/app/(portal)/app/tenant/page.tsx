@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { User, FileText, Receipt as ReceiptIcon, Download, Wrench, ShieldCheck, CheckCircle2, FileSpreadsheet, Zap } from 'lucide-react';
+import { User, FileText, Receipt as ReceiptIcon, Download, Wrench, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { tenantApi, Tenant } from '@/lib/api/tenantApi';
 import { leaseApi, Lease } from '@/lib/api/leaseApi';

@@ -2,7 +2,7 @@ import { apiClient } from './client';
 
 export type MeterType = 'ELECTRICITY' | 'WATER' | 'GAS';
 export type MeterScope = 'MASTER_DISCOM' | 'HALL_AC' | 'ROOM_AC' | 'COMMON_AREA';
-export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'DISPUTED';
+export type VerificationStatus = 'PENDING' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'APPROVED' | 'DISPUTED';
 
 export interface MeterReading {
   id: string;
