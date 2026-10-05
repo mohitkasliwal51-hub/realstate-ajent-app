@@ -43,7 +43,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health", "/actuator/**").permitAll()
+                        .requestMatchers("/health", "/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").hasAnyRole("SUPER_ADMIN", "ADMIN")
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .requestMatchers("/api/v1/properties/public", "/api/v1/showcase/**", "/uploads/public/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/leads").permitAll()

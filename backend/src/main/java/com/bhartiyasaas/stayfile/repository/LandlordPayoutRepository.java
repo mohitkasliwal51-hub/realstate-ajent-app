@@ -16,4 +16,5 @@ public interface LandlordPayoutRepository extends JpaRepository<LandlordPayout, 
     List<LandlordPayout> findByLandlordIdAndOrganizationId(UUID landlordId, UUID organizationId);
     List<LandlordPayout> findByOrganizationIdAndPayoutStatus(UUID organizationId, PayoutStatus status);
     Optional<LandlordPayout> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    Optional<LandlordPayout> findByOrganizationIdAndLandlordIdAndPeriodMonth(UUID organizationId, UUID landlordId, String periodMonth);
 }

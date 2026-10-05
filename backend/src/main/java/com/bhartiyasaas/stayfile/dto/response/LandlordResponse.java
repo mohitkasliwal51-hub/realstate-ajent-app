@@ -20,10 +20,12 @@ public class LandlordResponse {
     private String email;
     private String phone;
     private String pan;
+    private String panLast4;
     private String gstin;
     private String address;
 
     private String bankAccountNumber;
+    private String bankAccountLast4;
     private String bankIfscCode;
     private String bankName;
     private String accountHolderName;

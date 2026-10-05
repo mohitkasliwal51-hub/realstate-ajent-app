@@ -13,8 +13,10 @@ import com.bhartiyasaas.stayfile.entity.Unit;
 import com.bhartiyasaas.stayfile.entity.enums.TicketCategory;
 import com.bhartiyasaas.stayfile.entity.enums.TicketPriority;
 import com.bhartiyasaas.stayfile.entity.enums.TicketStatus;
+import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.MaintenanceTicketMapper;
+import com.bhartiyasaas.stayfile.repository.LeaseRepository;
 import com.bhartiyasaas.stayfile.repository.MaintenanceTicketRepository;
 import com.bhartiyasaas.stayfile.repository.OrganizationRepository;
 import com.bhartiyasaas.stayfile.repository.TenantRepository;
@@ -34,6 +36,7 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
     private final OrganizationRepository organizationRepository;
     private final UnitRepository unitRepository;
     private final TenantRepository tenantRepository;
+    private final LeaseRepository leaseRepository;
     private final MaintenanceTicketMapper ticketMapper;
     private final TenantAccessService tenantAccessService;
 
@@ -51,6 +54,16 @@ public class MaintenanceTicketServiceImpl implements MaintenanceTicketService {
         Tenant tenant = tenantRepository.findByIdAndOrganizationId(request.getTenantId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
         tenantAccessService.validateTenantOwnership(tenant, "maintenance ticket");
+
+        if (currentUser.getRole() == com.bhartiyasaas.stayfile.entity.enums.UserRole.TENANT) {
+            boolean hasLeaseOnUnit = leaseRepository.findByTenantId(tenant.getId()).stream()
+                    .anyMatch(lease -> lease.getUnit() != null && lease.getUnit().getId().equals(unit.getId())
+                            && (lease.getStatus() == com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.ACTIVE
+                            || lease.getStatus() == com.bhartiyasaas.stayfile.entity.enums.LeaseStatus.PENDING_ESIGN));
+            if (!hasLeaseOnUnit) {
+                throw new BadRequestException("You can only submit maintenance tickets for units you are currently leasing");
+            }
+        }
 
         MaintenanceTicket ticket = ticketMapper.toEntity(request);
         ticket.setOrganization(organization);

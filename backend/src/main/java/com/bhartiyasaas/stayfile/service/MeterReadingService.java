@@ -12,4 +12,5 @@ public interface MeterReadingService {
     MeterReadingResponse getMeterReadingById(UUID id, SecurityUser currentUser);
     List<MeterReadingResponse> getMeterReadingsByUnit(UUID unitId, SecurityUser currentUser);
     List<MeterReadingResponse> getMeterReadingsByLease(UUID leaseId, SecurityUser currentUser);
+    List<MeterReadingResponse> getMeterReadingsByOrganization(SecurityUser currentUser);
 }

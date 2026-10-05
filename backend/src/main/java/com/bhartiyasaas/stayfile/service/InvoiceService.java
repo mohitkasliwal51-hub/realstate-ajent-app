@@ -10,6 +10,7 @@ import com.bhartiyasaas.stayfile.security.SecurityUser;
 public interface InvoiceService {
     InvoiceResponse createInvoice(InvoiceRequest request, SecurityUser currentUser);
     InvoiceResponse getInvoiceById(UUID id, SecurityUser currentUser);
+    List<InvoiceResponse> getInvoicesForCurrentUser(SecurityUser currentUser);
     List<InvoiceResponse> getInvoicesByLease(UUID leaseId, SecurityUser currentUser);
     List<InvoiceResponse> getInvoicesByOrganization(SecurityUser currentUser);
     InvoiceResponse generateMoveInInvoice(UUID leaseId, SecurityUser currentUser);

@@ -16,4 +16,5 @@ public interface MeterReadingRepository extends JpaRepository<MeterReading, UUID
         Optional<MeterReading> findTopByUnitIdAndOrganizationIdAndMeterTypeOrderByReadingDateDesc(
             UUID unitId, UUID organizationId, String meterType);
     Optional<MeterReading> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    List<MeterReading> findByOrganizationIdOrderByReadingDateDesc(UUID organizationId);
 }

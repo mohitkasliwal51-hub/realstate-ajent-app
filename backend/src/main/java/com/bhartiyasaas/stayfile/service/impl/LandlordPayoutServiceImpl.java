@@ -75,6 +75,21 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
         if (gross.signum() < 0 || comm.signum() < 0 || ded.signum() < 0) {
             throw new BadRequestException("Payout amounts cannot be negative");
         }
+        if (comm.add(ded).compareTo(gross) > 0) {
+            throw new BadRequestException("Commission and deductions cannot exceed total collected");
+        }
+
+        if (request.getPeriodMonth() != null && !request.getPeriodMonth().isBlank()) {
+            YearMonth period = parsePeriod(request.getPeriodMonth());
+            String formattedPeriod = period.toString();
+            if (landlordPayoutRepository.findByOrganizationIdAndLandlordIdAndPeriodMonth(organizationId, landlord.getId(), formattedPeriod).isPresent()) {
+                throw new BadRequestException("A payout has already been created for landlord " + landlord.getLegalName() + " for period " + formattedPeriod);
+            }
+            payout.setPeriodMonth(formattedPeriod);
+            payout.setPeriodStart(request.getPeriodStart() != null ? request.getPeriodStart() : period.atDay(1));
+            payout.setPeriodEnd(request.getPeriodEnd() != null ? request.getPeriodEnd() : period.atEndOfMonth());
+        }
+
         BigDecimal net = gross.subtract(comm).subtract(ded);
         payout.setTotalCollected(gross);
         payout.setCommissionAmount(comm);
@@ -123,6 +138,11 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
                 .orElseThrow(() -> new ResourceNotFoundException("Landlord not found with ID: " + landlordId));
 
         YearMonth period = parsePeriod(periodMonth);
+        String formattedPeriod = period.toString();
+        if (landlordPayoutRepository.findByOrganizationIdAndLandlordIdAndPeriodMonth(organizationId, landlordId, formattedPeriod).isPresent()) {
+            throw new BadRequestException("A payout has already been generated for landlord " + landlord.getLegalName() + " for period " + formattedPeriod);
+        }
+
         LocalDate periodStart = period.atDay(1);
         LocalDate periodEnd = period.atEndOfMonth();
 
@@ -171,18 +191,69 @@ public class LandlordPayoutServiceImpl implements LandlordPayoutService {
             }
         }
 
+        if (totalCommission.add(totalMaintFee).compareTo(grossRent) > 0) {
+            if (totalCommission.compareTo(grossRent) > 0) {
+                totalCommission = grossRent;
+                totalMaintFee = BigDecimal.ZERO;
+            } else {
+                totalMaintFee = grossRent.subtract(totalCommission);
+            }
+        }
+
         BigDecimal netPayable = grossRent.subtract(totalCommission).subtract(totalMaintFee);
 
         LandlordPayout payout = new LandlordPayout();
         payout.setOrganization(organization);
         payout.setLandlord(landlord);
         payout.setPayoutNumber("PAY-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM")) + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
+        payout.setPeriodMonth(formattedPeriod);
+        payout.setPeriodStart(periodStart);
+        payout.setPeriodEnd(periodEnd);
         payout.setTotalCollected(grossRent);
         payout.setCommissionAmount(totalCommission);
         payout.setDeductionsAmount(totalMaintFee);
         payout.setNetPayoutAmount(netPayable.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : netPayable);
         payout.setPayoutStatus(PayoutStatus.PENDING);
 
+        LandlordPayout saved = landlordPayoutRepository.save(payout);
+        return landlordPayoutMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public LandlordPayoutResponse updatePayoutStatus(UUID id, com.bhartiyasaas.stayfile.dto.request.PayoutStatusUpdateRequest request, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        LandlordPayout payout = landlordPayoutRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Landlord payout not found with ID: " + id));
+
+        PayoutStatus newStatus = request.getPayoutStatus();
+        if (newStatus == null) {
+            throw new BadRequestException("Payout status is required");
+        }
+
+        if (payout.getPayoutStatus() == PayoutStatus.SETTLED && newStatus != PayoutStatus.SETTLED) {
+            throw new BadRequestException("Settled payouts cannot transition back to " + newStatus);
+        }
+
+        if (newStatus == PayoutStatus.SETTLED) {
+            if (request.getUtrNumber() != null && !request.getUtrNumber().isBlank()) {
+                payout.setUtrNumber(request.getUtrNumber());
+            }
+            payout.setPayoutDate(request.getPayoutDate() != null ? request.getPayoutDate() : LocalDate.now());
+        } else {
+            if (request.getUtrNumber() != null) {
+                payout.setUtrNumber(request.getUtrNumber());
+            }
+            if (request.getPayoutDate() != null) {
+                payout.setPayoutDate(request.getPayoutDate());
+            }
+        }
+
+        if (request.getNotes() != null && !request.getNotes().isBlank()) {
+            payout.setNotes(request.getNotes());
+        }
+
+        payout.setPayoutStatus(newStatus);
         LandlordPayout saved = landlordPayoutRepository.save(payout);
         return landlordPayoutMapper.toResponse(saved);
     }

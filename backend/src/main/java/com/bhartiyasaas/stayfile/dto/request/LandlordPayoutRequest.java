@@ -19,6 +19,9 @@ public class LandlordPayoutRequest {
     private UUID landlordId;
 
     private UUID propertyId;
+    private String periodMonth;
+    private LocalDate periodStart;
+    private LocalDate periodEnd;
 
     @NotNull(message = "Total collected is required")
     @DecimalMin(value = "0.00", message = "Total collected cannot be negative")

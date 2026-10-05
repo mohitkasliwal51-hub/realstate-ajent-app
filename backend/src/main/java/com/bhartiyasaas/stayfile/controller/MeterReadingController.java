@@ -60,4 +60,12 @@ public class MeterReadingController {
         List<MeterReadingResponse> response = meterReadingService.getMeterReadingsByLease(leaseId, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT')")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<MeterReadingResponse>>> getMeterReadingsByOrganization(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<MeterReadingResponse> response = meterReadingService.getMeterReadingsByOrganization(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

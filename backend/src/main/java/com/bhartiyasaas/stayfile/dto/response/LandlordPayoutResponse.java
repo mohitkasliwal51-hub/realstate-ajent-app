@@ -20,6 +20,9 @@ public class LandlordPayoutResponse {
     private UUID organizationId;
     private UUID landlordId;
     private UUID propertyId;
+    private String periodMonth;
+    private LocalDate periodStart;
+    private LocalDate periodEnd;
     private BigDecimal totalCollected;
     private BigDecimal commissionAmount;
     private BigDecimal deductionsAmount;

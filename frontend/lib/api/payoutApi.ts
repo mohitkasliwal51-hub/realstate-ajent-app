@@ -11,6 +11,9 @@ export interface LandlordPayout {
   landlordId: string;
   landlordName?: string;
   propertyId?: string;
+  periodMonth?: string;
+  periodStart?: string;
+  periodEnd?: string;
   totalCollected: number;
   commissionAmount: number;
   deductionsAmount: number;
@@ -28,6 +31,9 @@ export interface LandlordPayout {
 export interface PayoutCreatePayload {
   landlordId: string;
   propertyId?: string;
+  periodMonth?: string;
+  periodStart?: string;
+  periodEnd?: string;
   totalCollected: number;
   commissionAmount?: number;
   deductionsAmount?: number;
@@ -35,6 +41,13 @@ export interface PayoutCreatePayload {
   payoutMode?: PaymentMode;
   utrNumber?: string;
   /** ISO date (YYYY-MM-DD) */
+  payoutDate?: string;
+  notes?: string;
+}
+
+export interface PayoutUpdateStatusPayload {
+  payoutStatus: PayoutStatus;
+  utrNumber?: string;
   payoutDate?: string;
   notes?: string;
 }
@@ -69,6 +82,11 @@ export const payoutApi = {
     const response = await apiClient.post(`/api/v1/landlord-payouts/calculate/${landlordId}`, null, {
       params: { periodMonth },
     });
+    return response.data.data;
+  },
+
+  updatePayoutStatus: async (id: string, payload: PayoutUpdateStatusPayload): Promise<LandlordPayout> => {
+    const response = await apiClient.patch(`/api/v1/landlord-payouts/${id}/status`, payload);
     return response.data.data;
   },
 

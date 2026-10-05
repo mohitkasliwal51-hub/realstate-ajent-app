@@ -47,11 +47,16 @@ public class Landlord {
     private String phone;
 
     private String pan;
+    @Column(name = "pan_last4")
+    private String panLast4;
     private String gstin;
     private String address;
 
     @Column(name = "bank_account_number")
     private String bankAccountNumber;
+
+    @Column(name = "bank_account_last4")
+    private String bankAccountLast4;
 
     @Column(name = "bank_ifsc_code")
     private String bankIfscCode;

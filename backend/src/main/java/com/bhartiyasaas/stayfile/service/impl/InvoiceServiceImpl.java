@@ -134,6 +134,16 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<InvoiceResponse> getInvoicesForCurrentUser(SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Tenant tenant = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant profile not found for current user"));
+        List<Invoice> invoices = invoiceRepository.findByTenantIdAndOrganizationId(tenant.getId(), organizationId);
+        return invoiceMapper.toResponseList(invoices);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InvoiceResponse> getInvoicesByLease(UUID leaseId, SecurityUser currentUser) {
         UUID organizationId = currentUser.getOrganizationId();
         Lease lease = leaseRepository.findByIdAndOrganizationId(leaseId, organizationId)

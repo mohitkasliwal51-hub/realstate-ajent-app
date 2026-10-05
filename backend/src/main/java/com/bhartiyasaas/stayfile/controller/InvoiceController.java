@@ -42,6 +42,14 @@ public class InvoiceController {
                 .body(ApiResponse.success(response, "Invoice created successfully"));
     }
 
+    @PreAuthorize("hasRole('TENANT')")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<InvoiceResponse>>> getCurrentUserInvoices(
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        List<InvoiceResponse> response = invoiceService.getInvoicesForCurrentUser(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<InvoiceResponse>> getInvoiceById(

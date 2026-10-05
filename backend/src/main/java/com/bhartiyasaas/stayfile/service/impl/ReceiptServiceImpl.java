@@ -1,5 +1,6 @@
 package com.bhartiyasaas.stayfile.service.impl;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -14,7 +15,9 @@ import com.bhartiyasaas.stayfile.entity.Invoice;
 import com.bhartiyasaas.stayfile.entity.Lease;
 import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Receipt;
+import com.bhartiyasaas.stayfile.entity.enums.InvoiceStatus;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.ReceiptMapper;
 import com.bhartiyasaas.stayfile.repository.InvoiceRepository;
@@ -60,6 +63,12 @@ public class ReceiptServiceImpl implements ReceiptService {
             throw new IllegalArgumentException("Receipt tenant does not match the lease");
         }
 
+        if (request.getTransactionReference() != null && !request.getTransactionReference().isBlank()) {
+            if (receiptRepository.existsByOrganizationIdAndTransactionReference(organizationId, request.getTransactionReference().trim())) {
+                throw new com.bhartiyasaas.stayfile.exception.BadRequestException("A receipt with transaction reference '" + request.getTransactionReference() + "' already exists");
+            }
+        }
+
         Invoice invoice = null;
         if (request.getInvoiceId() != null) {
             invoice = invoiceRepository.findByIdAndOrganizationId(request.getInvoiceId(), organizationId)
@@ -68,12 +77,30 @@ public class ReceiptServiceImpl implements ReceiptService {
                     || !invoice.getTenant().getId().equals(lease.getTenant().getId())) {
                 throw new IllegalArgumentException("Invoice does not belong to the selected lease and tenant");
             }
+            if (invoice.getStatus() == InvoiceStatus.PAID) {
+                throw new com.bhartiyasaas.stayfile.exception.BadRequestException("Invoice is already fully paid");
+            }
+            BigDecimal currentPaid = invoice.getPaidAmount() != null ? invoice.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal balanceDue = invoice.getTotalAmount().subtract(currentPaid);
+            if (request.getAmount().compareTo(balanceDue) > 0) {
+                throw new com.bhartiyasaas.stayfile.exception.BadRequestException(
+                    "Receipt amount (" + request.getAmount() + ") exceeds remaining invoice balance due (" + balanceDue + ")");
+            }
+
+            BigDecimal newPaid = currentPaid.add(request.getAmount());
+            invoice.setPaidAmount(newPaid);
+            if (newPaid.compareTo(invoice.getTotalAmount()) >= 0) {
+                invoice.setStatus(InvoiceStatus.PAID);
+            } else {
+                invoice.setStatus(InvoiceStatus.PARTIAL);
+            }
+            invoiceRepository.save(invoice);
         }
 
         String prefix = "REC-" + LocalDate.now().getYear() + "-";
         int nextSequence = receiptRepository
                 .findTopByOrganizationIdAndReceiptNumberStartingWithOrderByReceiptNumberDesc(organization.getId(), prefix)
-                .map(receipt -> Integer.parseInt(receipt.getReceiptNumber().substring(prefix.length())) + 1)
+                .map(r -> Integer.parseInt(r.getReceiptNumber().substring(prefix.length())) + 1)
                 .orElse(1);
         String receiptNumber = prefix + String.format("%06d", nextSequence);
 

@@ -298,12 +298,14 @@ CREATE TABLE IF NOT EXISTS public.landlords (
     legal_name TEXT NOT NULL,                       -- Landlord Full Legal Name (for Agreements)
     email TEXT,
     phone TEXT NOT NULL,
-    pan TEXT,                                        -- PAN for Tax Compliance & TDS
+    pan TEXT,                                        -- Encrypted PAN for Tax Compliance & TDS
+    pan_last4 VARCHAR(20),
     gstin TEXT,
     address TEXT,
     
     -- Landlord Direct Payout Banking Details
-    bank_account_number TEXT,
+    bank_account_number TEXT,                        -- Encrypted bank account number
+    bank_account_last4 VARCHAR(20),
     bank_ifsc_code TEXT,
     bank_name TEXT,
     account_holder_name TEXT,
@@ -589,6 +591,9 @@ CREATE TABLE IF NOT EXISTS public.landlord_payouts (
     deductions_amount DECIMAL(10, 2) DEFAULT 0.00 CHECK (deductions_amount >= 0), -- Maintenance/Repair deductions
     net_payout_amount DECIMAL(10, 2) NOT NULL CHECK (net_payout_amount >= 0),
     
+    period_month VARCHAR(7),                         -- Billing Period Month (e.g. '2026-10')
+    period_start DATE,
+    period_end DATE,
     payout_mode payment_mode NOT NULL DEFAULT 'NET_BANKING',
     payout_status payout_status NOT NULL DEFAULT 'PENDING',
     utr_number TEXT,                                 -- Bank Transfer Reference UTR
@@ -597,7 +602,8 @@ CREATE TABLE IF NOT EXISTS public.landlord_payouts (
     statement_pdf_url TEXT,
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_payout_deductions_limit CHECK (commission_amount + deductions_amount <= total_collected)
 );
 
 -- BBPS Utility Bill Transactions (Electricity, Water via Decentro / BBPS)
@@ -980,6 +986,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_monthly_rent_invoice
     ON public.invoices (lease_id, billing_period_start)
     WHERE invoice_type = 'MONTHLY_RENT';
 
+-- Prevent duplicate landlord payouts for the same period
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payout_landlord_period
+    ON public.landlord_payouts (organization_id, landlord_id, period_month)
+    WHERE period_month IS NOT NULL;
+
+-- Prevent duplicate receipt creation for the same gateway/bank transaction reference
+CREATE UNIQUE INDEX IF NOT EXISTS uq_receipts_org_tx_ref
+    ON public.receipts (organization_id, transaction_reference)
+    WHERE transaction_reference IS NOT NULL AND transaction_reference <> '';
+
 ALTER TABLE public.tenants ADD CONSTRAINT uq_org_phone UNIQUE (organization_id, phone);
 
 -- One tenant record per tenant login (required for tenant self-service lookups)
@@ -1041,6 +1057,18 @@ ALTER TABLE public.whatsapp_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.property_leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.integration_logs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.landlords FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.properties FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.units FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.tenants FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.leases FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.meter_readings FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.invoice_line_items FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.receipts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.landlord_payouts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.maintenance_tickets FORCE ROW LEVEL SECURITY;
 
 -- Public showcase RLS policies
 CREATE POLICY "Public can view active properties" ON public.properties

@@ -13,5 +13,6 @@ public interface LandlordPayoutService {
     List<LandlordPayoutResponse> getPayoutsByLandlord(UUID landlordId, SecurityUser currentUser);
     List<LandlordPayoutResponse> getPayoutsByOrganization(SecurityUser currentUser);
     LandlordPayoutResponse calculateMonthlyPayoutForLandlord(UUID landlordId, String periodMonth, SecurityUser currentUser);
+    LandlordPayoutResponse updatePayoutStatus(UUID id, com.bhartiyasaas.stayfile.dto.request.PayoutStatusUpdateRequest request, SecurityUser currentUser);
     byte[] downloadPayoutPdf(UUID id, SecurityUser currentUser);
 }

@@ -42,6 +42,15 @@ public class LandlordPayout {
     @JoinColumn(name = "property_id")
     private Property property;
 
+    @Column(name = "period_month")
+    private String periodMonth;
+
+    @Column(name = "period_start")
+    private LocalDate periodStart;
+
+    @Column(name = "period_end")
+    private LocalDate periodEnd;
+
     @Column(name = "total_collected", nullable = false)
     private BigDecimal totalCollected;
 

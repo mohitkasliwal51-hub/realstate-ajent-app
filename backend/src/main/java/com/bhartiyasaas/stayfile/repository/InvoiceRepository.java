@@ -24,6 +24,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
             UUID leaseId, UUID organizationId, LocalDate billingPeriodStart, InvoiceType invoiceType);
     Optional<Invoice> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Optional<Invoice> findByOrganizationIdAndInvoiceNumber(UUID organizationId, String invoiceNumber);
+    List<Invoice> findByTenantIdAndOrganizationId(UUID tenantId, UUID organizationId);
 
     @Modifying
     @Query("UPDATE Invoice i SET i.status = :overdueStatus WHERE i.dueDate < :currentDate AND i.status IN (:unpaidStatus, :partialStatus)")
