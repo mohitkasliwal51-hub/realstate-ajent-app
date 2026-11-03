@@ -1,4 +1,4 @@
-# 🏡 BrokerProp - Real Estate Broker & PG Management Platform
+﻿# 🏡 StayFile - Real Estate Broker & PG Management Platform
 
 > **A custom white-label web platform empowering real estate brokers, property owners, and PG managers to showcase properties, generate legal rent agreements, automate rent collection, issue receipts, and manage tenant intimation.**
 
@@ -6,7 +6,7 @@
 
 ## 🌟 Executive Summary
 
-**BrokerProp** is an enterprise-grade multi-tenant SaaS platform designed specifically for the Indian real estate market. It bridges the gap between property showcase websites, WhatsApp conversational commerce, legal compliance (e-Stamping & Aadhaar e-Sign), utility bill payments (BBPS), and automated financial management for PG co-living spaces and full apartment rentals.
+**StayFile** is an enterprise-grade multi-tenant SaaS platform designed specifically for the Indian real estate market. It bridges the gap between property showcase websites, WhatsApp conversational commerce, legal compliance (e-Stamping & Aadhaar e-Sign), utility bill payments (BBPS), and automated financial management for PG co-living spaces and full apartment rentals.
 
 ---
 
@@ -14,7 +14,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   BROKERPROP ARCHITECTURE                              │
+│                                   STAYFILE ARCHITECTURE                              │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                        │
 │     ┌────────────────────────────────────┐            ┌──────────────────────────┐     │
@@ -52,7 +52,7 @@
 ## ✨ Key Platform Modules & Features
 
 ### 1. 🏢 White-Label Website & RBAC Portal
-- **Custom Subdomains / Domains**: Each broker/owner receives their own branded portal (e.g. `sunshinepg.brokerprop.com`).
+- **Custom Subdomains / Domains**: Each broker/owner receives their own branded portal (e.g. `sunshinepg.stayfile.com`).
 - **Role-Based Access Control (RBAC)**:
   - 👑 `SUPER_ADMIN`: Platform owner
   - 🏠 `OWNER_ADMIN`: Property Owner / Agency Admin
@@ -142,4 +142,4 @@ All 16 tables, custom types, automated unit-lease status triggers, receipt seque
 
 ---
 
-© 2026 **BrokerProp Platform**. All rights reserved.
+© 2026 **StayFile Platform**. All rights reserved.

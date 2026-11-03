@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Spring Boot Todo App - Docker Management Script
+# StayFile App - Docker Management Script
 # Usage: ./docker.sh [command]
 
 set -e
@@ -19,7 +19,7 @@ COMPOSE_FILE_PROD="docker-compose.prod.yml"
 
 # Helper functions
 print_help() {
-    echo -e "${BLUE}Spring Boot Todo App - Docker Management${NC}"
+    echo -e "${BLUE}StayFile App - Docker Management${NC}"
     echo ""
     echo "Usage: $0 [command]"
     echo ""
