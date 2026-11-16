@@ -18,19 +18,24 @@ import {
   Zap,
   Wallet,
   FileSpreadsheet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { isBrokerMode, getOrgMode } from '@/lib/orgMode';
 import { cn } from '@/lib/utils';
 
-export const Sidebar: React.FC = () => {
+export interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const brokerMode = isBrokerMode(user);
   const orgMode = getOrgMode(user);
 
   const isTenant = user?.role === 'TENANT';
-  const isAgent = user?.role === 'AGENT';
   const isAdminOrPM = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'PROPERTY_MANAGER';
 
   const tenantNavItems = [
@@ -58,87 +63,111 @@ export const Sidebar: React.FC = () => {
 
   const navItems = isTenant ? tenantNavItems : staffNavItems;
 
-  return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen border-r border-slate-800 shrink-0">
+  const NavContent = () => (
+    <div className="flex flex-col h-full bg-slate-900 text-slate-300">
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
+      <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-blue-500/25">
             S
           </div>
           <div>
-            <span className="font-bold text-white tracking-tight text-lg">StayFile</span>
-            <span className="block text-[10px] text-blue-400 font-semibold tracking-wider uppercase">
+            <span className="font-extrabold text-white tracking-tight text-lg">StayFile</span>
+            <span className="block text-[10px] text-blue-400 font-bold tracking-wider uppercase">
               {isTenant ? 'Tenant Portal' : 'Property OS'}
             </span>
           </div>
         </div>
-        <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded bg-slate-800 text-slate-300 border border-slate-700">
-          {isTenant ? 'TENANT' : orgMode}
-        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+            {isTenant ? 'TENANT' : orgMode}
+          </span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              aria-label="Close navigation menu"
+              className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-        <div className="px-3 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-          {isTenant ? 'Tenant Services' : 'Management'}
+      {/* Navigation Links */}
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+        <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          {isTenant ? 'Tenant Hub' : 'Management Console'}
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/app' && item.href !== '/app/tenant' && pathname.startsWith(item.href));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/app' && item.href !== '/app/tenant' && pathname.startsWith(item.href));
 
           return (
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => onClose?.()}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
+                'flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all group relative',
                 isActive
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 font-semibold'
-                  : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 font-bold'
+                  : 'hover:bg-slate-800/70 text-slate-400 hover:text-slate-100'
               )}
             >
-              <Icon
-                className={cn(
-                  'w-4 h-4 transition-transform group-hover:scale-105',
-                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
-                )}
-              />
-              {item.name}
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={cn(
+                    'w-4 h-4 transition-transform group-hover:scale-110 shrink-0',
+                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                  )}
+                />
+                <span>{item.name}</span>
+              </div>
+              {isActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs shrink-0" />
+              )}
             </Link>
           );
         })}
 
         {/* Public Showcase Link (Staff only) */}
         {!isTenant && (
-          <>
-            <div className="pt-4 px-3 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="pt-4">
+            <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Public Portal
             </div>
             <Link
               href={`/p/${user?.organizationSlug || 'default-org'}`}
               target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all"
+              onClick={() => onClose?.()}
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:bg-slate-800/70 hover:text-slate-200 transition-all"
             >
-              <ExternalLink className="w-4 h-4 text-slate-400" />
-              Public Showcase
+              <div className="flex items-center gap-3">
+                <ExternalLink className="w-4 h-4 text-slate-400" />
+                <span>Public Showcase</span>
+              </div>
+              <span className="text-[10px] font-bold bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Live</span>
             </Link>
-          </>
+          </div>
         )}
       </nav>
 
       {/* User Footer */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-        <div className="flex items-center justify-between">
+      <div className="p-4 border-t border-slate-800 bg-slate-950/60 shrink-0">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-200 font-semibold text-xs border border-slate-700">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-700 to-slate-800 flex items-center justify-center text-white font-bold text-xs border border-slate-700 shadow-xs shrink-0">
               {user?.fullName?.charAt(0) || 'U'}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">
+              <p className="text-xs font-bold text-white truncate leading-tight">
                 {user?.fullName || 'Manager'}
               </p>
-              <p className="text-[10px] text-slate-400 truncate">
+              <p className="text-[10px] text-slate-400 font-medium truncate">
                 {user?.role || 'PROPERTY_MANAGER'}
               </p>
             </div>
@@ -146,12 +175,36 @@ export const Sidebar: React.FC = () => {
           <button
             onClick={logout}
             title="Logout"
-            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+            aria-label="Logout"
+            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded-xl transition-colors shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden md:flex w-64 flex-col min-h-screen border-r border-slate-800 shrink-0 sticky top-0 h-screen z-30">
+        <NavContent />
+      </aside>
+
+      {/* Mobile Backdrop & Drawer */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 md:hidden animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          <aside className="fixed inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl z-50 animate-in slide-in-from-left duration-200">
+            <NavContent />
+          </aside>
+        </div>
+      )}
+    </>
   );
 };

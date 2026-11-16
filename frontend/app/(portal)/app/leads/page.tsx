@@ -5,9 +5,12 @@ import { UserCheck, Phone, Mail, Globe, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { leadApi, PropertyLead, LeadStatus } from '@/lib/api/leadApi';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function LeadsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<PropertyLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,9 +35,10 @@ export default function LeadsPage() {
     if (!user?.organizationId) return;
     try {
       await leadApi.updateLeadStatus(leadId, status);
+      toast.success(`Lead status updated to ${status}`);
       await loadLeads();
     } catch (err) {
-      alert('Failed to update lead status');
+      toast.error('Failed to update lead status');
     }
   };
 

@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getErrorMessage } from '@/lib/utils';
 import { validatePan, validateGstin, validateIfsc } from '@/lib/validation';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [orgType, setOrgType] = useState<OrganizationType>('HYBRID');
   const [branding, setBranding] = useState<FullBrandingSettings>({
     legalBusinessName: '',
@@ -67,15 +69,15 @@ export default function SettingsPage() {
     if (!user?.organizationId) return;
 
     if (branding.ownerPan && !validatePan(branding.ownerPan)) {
-      alert('Invalid PAN card number format. Example: ABCDE1234F');
+      toast.warning('Invalid PAN card number format. Example: ABCDE1234F');
       return;
     }
     if (branding.ownerGstin && !validateGstin(branding.ownerGstin)) {
-      alert('Invalid GSTIN number format. Example: 29ABCDE1234F1Z5');
+      toast.warning('Invalid GSTIN number format. Example: 29ABCDE1234F1Z5');
       return;
     }
     if (branding.bankIfscCode && !validateIfsc(branding.bankIfscCode)) {
-      alert('Invalid IFSC Code format. Example: SBIN0001234');
+      toast.warning('Invalid IFSC Code format. Example: SBIN0001234');
       return;
     }
 
@@ -83,9 +85,10 @@ export default function SettingsPage() {
     setSuccessMessage(null);
     try {
       await orgApi.updateBranding(user.organizationId, branding);
+      toast.success('Branding & Organization bank details updated successfully!');
       setSuccessMessage('Branding & Organization bank details updated successfully!');
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to update branding settings.'));
+      toast.error(getErrorMessage(err, 'Failed to update branding settings.'));
     } finally {
       setIsSavingBranding(false);
     }
@@ -100,10 +103,11 @@ export default function SettingsPage() {
     try {
       await orgApi.updateOrgType(user.organizationId, newType);
       setOrgType(newType);
+      toast.success(`Organization operating mode updated to ${newType}!`);
       setSuccessMessage(`Organization operating mode updated to ${newType}! Please refresh to update navigation.`);
       window.location.reload();
     } catch (err) {
-      alert(getErrorMessage(err, 'Cannot switch organization type. Check active landlords/properties constraints.'));
+      toast.error(getErrorMessage(err, 'Cannot switch organization type. Check active landlords/properties constraints.'));
     } finally {
       setIsUpdatingType(false);
     }

@@ -10,15 +10,21 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function ReceiptsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
 
   const [formData, setFormData] = useState({
     leaseId: '',
@@ -80,10 +86,11 @@ export default function ReceiptsPage() {
         ...formData,
         tenantId: targetTenantId,
       });
+      toast.success('Rent receipt issued successfully!');
       setIsModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Failed to generate receipt.'));
+      toast.error(getErrorMessage(err, 'Failed to generate receipt.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -98,16 +105,33 @@ export default function ReceiptsPage() {
       a.href = url;
       a.download = `Receipt_${receiptId}.pdf`;
       a.click();
+      toast.success('Receipt PDF downloaded!');
     } catch (err) {
-      alert('Failed to download receipt PDF.');
+      toast.error('Failed to download receipt PDF.');
     }
   };
+
+  const filteredReceipts = receipts.filter((r) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      r.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.transactionReference?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = typeFilter === 'ALL' || r.receiptType === typeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: receipts.length },
+    { id: 'RENT_PAYMENT', label: 'Rent', count: receipts.filter((r) => r.receiptType === 'RENT_PAYMENT').length },
+    { id: 'SECURITY_DEPOSIT', label: 'Deposit', count: receipts.filter((r) => r.receiptType === 'SECURITY_DEPOSIT').length },
+    { id: 'MAINTENANCE', label: 'Maintenance', count: receipts.filter((r) => r.receiptType === 'MAINTENANCE').length },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{isTenant ? 'Payment Receipts' : 'Rent Receipts'}</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{isTenant ? 'Payment Receipts' : 'Rent Receipts'}</h1>
           <p className="text-xs text-slate-500 mt-1">
             {isTenant
               ? 'View and download official payment receipts for rent, deposits, and maintenance.'
@@ -121,25 +145,31 @@ export default function ReceiptsPage() {
         )}
       </div>
 
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search receipts by number or reference..."
+        filterOptions={filterOptions}
+        activeFilter={typeFilter}
+        onFilterChange={setTypeFilter}
+      />
+
       {isLoading ? (
         <TableSkeleton rows={5} columns={5} />
-      ) : receipts.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
-          <ReceiptIcon className="w-12 h-12 text-slate-400 mx-auto" />
-          <div>
-            <h3 className="font-bold text-slate-900">{isTenant ? 'No receipts found' : 'No receipts issued yet'}</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              {isTenant
-                ? 'You do not have any payment receipts recorded yet.'
-                : 'Select an active lease to issue your first rent receipt.'}
-            </p>
-          </div>
-          {!isTenant && (
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Issue Rent Receipt
-            </Button>
-          )}
-        </div>
+      ) : filteredReceipts.length === 0 ? (
+        <EmptyState
+          icon={ReceiptIcon}
+          title={isTenant ? 'No receipts found' : 'No receipts match your filter'}
+          description={
+            isTenant
+              ? 'You do not have any payment receipts recorded yet.'
+              : receipts.length === 0
+              ? 'Select an active lease to issue your first rent receipt.'
+              : 'Try clearing your search term or selecting a different filter.'
+          }
+          actionLabel={!isTenant && receipts.length === 0 ? 'Issue Rent Receipt' : undefined}
+          onAction={!isTenant && receipts.length === 0 ? () => setIsModalOpen(true) : undefined}
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -154,7 +184,7 @@ export default function ReceiptsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {receipts.map((receipt) => (
+                {filteredReceipts.map((receipt) => (
                   <tr key={receipt.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">

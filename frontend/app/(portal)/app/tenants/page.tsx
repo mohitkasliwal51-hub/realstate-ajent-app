@@ -10,15 +10,21 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { FileUpload } from '@/components/ui/FileUpload';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { validateIndianPhone, validateAadhaar } from '@/lib/validation';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function TenantsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [kycFilter, setKycFilter] = useState('ALL');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -54,15 +60,15 @@ export default function TenantsPage() {
     e.preventDefault();
     if (!user?.organizationId) return;
     if (formData.phone && !validateIndianPhone(formData.phone)) {
-      alert('Invalid 10-digit Indian phone number.');
+      toast.warning('Invalid 10-digit Indian phone number.');
       return;
     }
     if (formData.emergencyContactPhone && !validateIndianPhone(formData.emergencyContactPhone)) {
-      alert('Invalid 10-digit Indian emergency contact phone number.');
+      toast.warning('Invalid 10-digit Indian emergency contact phone number.');
       return;
     }
     if (formData.idProofType === 'Aadhaar Card' && formData.idProofNumber && !validateAadhaar(formData.idProofNumber)) {
-      alert('Invalid 12-digit Aadhaar Card number.');
+      toast.warning('Invalid 12-digit Aadhaar Card number.');
       return;
     }
 
@@ -72,6 +78,7 @@ export default function TenantsPage() {
         ...formData,
         idProofDocumentUrl: formData.idProofDocumentUrl || undefined,
       });
+      toast.success('Tenant registered successfully!');
       setIsModalOpen(false);
       setCurrentStep(1);
       setFormData({
@@ -88,23 +95,40 @@ export default function TenantsPage() {
       });
       await loadTenants();
     } catch (err) {
-      alert('Failed to register tenant.');
+      toast.error('Failed to register tenant.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const getKycBadge = (status: VerificationStatus) => {
-    if (status === 'VERIFIED') return <Badge variant="success">KYC Verified</Badge>;
-    if (status === 'REJECTED') return <Badge variant="danger">KYC Rejected</Badge>;
-    return <Badge variant="warning">KYC Pending</Badge>;
+    if (status === 'VERIFIED') return <Badge variant="success" dot>KYC Verified</Badge>;
+    if (status === 'REJECTED') return <Badge variant="danger" dot>KYC Rejected</Badge>;
+    return <Badge variant="warning" dot>KYC Pending</Badge>;
   };
+
+  const filteredTenants = tenants.filter((t) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      t.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesKyc = kycFilter === 'ALL' || t.kycStatus === kycFilter;
+    return matchesSearch && matchesKyc;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: tenants.length },
+    { id: 'VERIFIED', label: 'Verified', count: tenants.filter((t) => t.kycStatus === 'VERIFIED').length },
+    { id: 'PENDING', label: 'Pending', count: tenants.filter((t) => t.kycStatus === 'PENDING').length },
+    { id: 'REJECTED', label: 'Rejected', count: tenants.filter((t) => t.kycStatus === 'REJECTED').length },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tenants & Onboarding</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Tenants & Onboarding</h1>
           <p className="text-xs text-slate-500 mt-1">
             Guided onboarding, emergency contacts, permanent address details, and ID verification status.
           </p>
@@ -114,21 +138,29 @@ export default function TenantsPage() {
         </Button>
       </div>
 
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search tenants by name, email or phone..."
+        filterOptions={filterOptions}
+        activeFilter={kycFilter}
+        onFilterChange={setKycFilter}
+      />
+
       {isLoading ? (
         <TableSkeleton rows={5} columns={4} />
-      ) : tenants.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
-          <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900">No tenants registered yet</h3>
-            <p className="text-xs text-slate-500 mt-1">Onboard your first tenant to start lease agreements.</p>
-          </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Register Tenant
-          </Button>
-        </div>
+      ) : filteredTenants.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={tenants.length === 0 ? 'No tenants registered yet' : 'No tenants match your filter'}
+          description={
+            tenants.length === 0
+              ? 'Onboard your first tenant to start lease agreements.'
+              : 'Try adjusting your search query or selecting a different KYC status filter.'
+          }
+          actionLabel={tenants.length === 0 ? 'Register Tenant' : undefined}
+          onAction={tenants.length === 0 ? () => setIsModalOpen(true) : undefined}
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -142,7 +174,7 @@ export default function TenantsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {tenants.map((tenant) => (
+                {filteredTenants.map((tenant) => (
                   <tr key={tenant.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

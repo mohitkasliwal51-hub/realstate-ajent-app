@@ -22,9 +22,11 @@ import {
   normalizeIndianPhone,
 } from '@/lib/validation';
 import { getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function LandlordsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const brokerMode = isBrokerMode(user);
 
   const [landlords, setLandlords] = useState<Landlord[]>([]);
@@ -113,19 +115,19 @@ export default function LandlordsPage() {
     e.preventDefault();
 
     if (formData.phone && !validateIndianPhone(formData.phone)) {
-      alert('Please enter a valid 10-digit Indian phone number.');
+      toast.warning('Please enter a valid 10-digit Indian phone number.');
       return;
     }
     if (formData.pan && !validatePan(formData.pan)) {
-      alert('Please enter a valid 10-character PAN number (e.g., ABCDE1234F).');
+      toast.warning('Please enter a valid 10-character PAN number (e.g., ABCDE1234F).');
       return;
     }
     if (formData.gstin && !validateGstin(formData.gstin)) {
-      alert('Please enter a valid 15-character GSTIN (e.g., 07AAAAA0000A1Z5).');
+      toast.warning('Please enter a valid 15-character GSTIN (e.g., 07AAAAA0000A1Z5).');
       return;
     }
     if (formData.bankIfscCode && !validateIfsc(formData.bankIfscCode)) {
-      alert('Please enter a valid 11-character IFSC code (e.g., SBIN0001234).');
+      toast.warning('Please enter a valid 11-character IFSC code (e.g., SBIN0001234).');
       return;
     }
 
@@ -141,13 +143,15 @@ export default function LandlordsPage() {
     try {
       if (editingLandlord) {
         await landlordApi.updateLandlord(editingLandlord.id, payload);
+        toast.success('Landlord updated successfully!');
       } else {
         await landlordApi.createLandlord(payload);
+        toast.success('Landlord added successfully!');
       }
       setIsModalOpen(false);
       await loadLandlords();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to save landlord'));
+      toast.error(getErrorMessage(err, 'Failed to save landlord'));
     } finally {
       setIsSubmitting(false);
     }
@@ -158,10 +162,11 @@ export default function LandlordsPage() {
     setIsDeleting(true);
     try {
       await landlordApi.deleteLandlord(landlordToDelete.id);
+      toast.success('Landlord deactivated successfully.');
       setLandlordToDelete(null);
       await loadLandlords();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to deactivate landlord'));
+      toast.error(getErrorMessage(err, 'Failed to deactivate landlord'));
     } finally {
       setIsDeleting(false);
     }

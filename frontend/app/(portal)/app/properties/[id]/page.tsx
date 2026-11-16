@@ -25,6 +25,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function PropertyDetailsPage({
   params: paramsPromise,
@@ -35,6 +36,7 @@ export default function PropertyDetailsPage({
   const propertyId = params.id;
 
   const { user } = useAuth();
+  const { toast } = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,10 +52,11 @@ export default function PropertyDetailsPage({
     setIsDeletingUnit(true);
     try {
       await unitApi.deleteUnit(unitToDelete.id);
+      toast.success('Unit removed successfully.');
       setUnitToDelete(null);
       await loadData();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to delete unit'));
+      toast.error(getErrorMessage(err, 'Failed to delete unit'));
     } finally {
       setIsDeletingUnit(false);
     }
@@ -111,9 +114,10 @@ export default function PropertyDetailsPage({
         amenities: '',
         notes: '',
       });
+      toast.success('Unit created successfully!');
       await loadData();
     } catch (err) {
-      alert('Failed to add unit. Please try again.');
+      toast.error('Failed to add unit. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,9 +127,10 @@ export default function PropertyDetailsPage({
     if (!user?.organizationId) return;
     try {
       await unitApi.updateUnitStatus(unitId, newStatus);
+      toast.success(`Unit status updated to ${newStatus}`);
       await loadData();
     } catch (err) {
-      alert('Failed to update status.');
+      toast.error('Failed to update status.');
     }
   };
 

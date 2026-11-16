@@ -19,16 +19,22 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function TicketsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isTenant = user?.role === 'TENANT';
 
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
   const [tenantProfile, setTenantProfile] = useState<Tenant | null>(null);
   const [tenantLease, setTenantLease] = useState<Lease | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
@@ -78,9 +84,10 @@ export default function TicketsPage() {
     if (!user?.organizationId || isTenant) return;
     try {
       await ticketApi.updateTicketStatus(ticketId, status as any);
+      toast.success(`Ticket status updated to ${status}`);
       await loadTickets();
     } catch (err) {
-      alert('Failed to update ticket status');
+      toast.error('Failed to update ticket status');
     }
   };
 
@@ -99,16 +106,17 @@ export default function TicketsPage() {
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketForm.unitId || !ticketForm.tenantId) {
-      alert('Cannot create ticket: active lease or unit assignment not found.');
+      toast.warning('Cannot create ticket: active lease or unit assignment not found.');
       return;
     }
     setIsSubmittingTicket(true);
     try {
       await ticketApi.createTicket(ticketForm);
+      toast.success('Maintenance ticket submitted successfully!');
       setIsModalOpen(false);
       await loadTickets();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to log maintenance ticket'));
+      toast.error(getErrorMessage(err, 'Failed to log maintenance ticket'));
     } finally {
       setIsSubmittingTicket(false);
     }
@@ -116,18 +124,36 @@ export default function TicketsPage() {
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
-      case 'URGENT': return <Badge variant="danger">Urgent</Badge>;
-      case 'HIGH': return <Badge variant="warning">High</Badge>;
+      case 'URGENT': return <Badge variant="danger" dot pulse>Urgent</Badge>;
+      case 'HIGH': return <Badge variant="warning" dot>High</Badge>;
       case 'MEDIUM': return <Badge variant="info">Medium</Badge>;
       default: return <Badge variant="default">Low</Badge>;
     }
   };
 
+  const filteredTickets = tickets.filter((t) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.tenantName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: tickets.length },
+    { id: 'OPEN', label: 'Open', count: tickets.filter((t) => t.status === 'OPEN').length },
+    { id: 'IN_PROGRESS', label: 'In Progress', count: tickets.filter((t) => t.status === 'IN_PROGRESS').length },
+    { id: 'RESOLVED', label: 'Resolved', count: tickets.filter((t) => t.status === 'RESOLVED').length },
+    { id: 'CLOSED', label: 'Closed', count: tickets.filter((t) => t.status === 'CLOSED').length },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             {isTenant ? 'My Maintenance Tickets' : 'Maintenance Desk'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -143,25 +169,31 @@ export default function TicketsPage() {
         )}
       </div>
 
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search tickets by title, category, or tenant..."
+        filterOptions={filterOptions}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+      />
+
       {isLoading ? (
         <TableSkeleton rows={5} columns={5} />
-      ) : tickets.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
-          <Wrench className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900">
-            {isTenant ? 'No maintenance tickets raised' : 'No active tickets'}
-          </h3>
-          <p className="text-xs text-slate-500">
-            {isTenant
+      ) : filteredTickets.length === 0 ? (
+        <EmptyState
+          icon={Wrench}
+          title={isTenant ? 'No maintenance tickets raised' : 'No tickets match your filter'}
+          description={
+            isTenant
               ? 'Have an issue in your unit? Raise a ticket and the property manager will be notified.'
-              : 'Maintenance requests logged by residents will appear here.'}
-          </p>
-          {isTenant && tenantLease && (
-            <Button onClick={handleOpenModal}>
-              <Plus className="w-4 h-4 mr-2" /> Raise Ticket
-            </Button>
-          )}
-        </div>
+              : tickets.length === 0
+              ? 'Maintenance requests logged by residents will appear here.'
+              : 'Try clearing your search query or selecting a different status tab.'
+          }
+          actionLabel={isTenant && tenantLease ? 'Raise Ticket' : undefined}
+          onAction={isTenant && tenantLease ? handleOpenModal : undefined}
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs">
@@ -175,7 +207,7 @@ export default function TicketsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {tickets.map((ticket) => (
+              {filteredTickets.map((ticket) => (
                 <tr key={ticket.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <p className="font-bold text-slate-900 text-sm">{ticket.title}</p>

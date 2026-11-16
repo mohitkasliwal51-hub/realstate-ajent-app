@@ -13,15 +13,21 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { Input } from '@/components/ui/Input';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function LeasesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,10 +89,11 @@ export default function LeasesPage() {
         status: 'DRAFT',
         ...formData,
       });
+      toast.success('Rent agreement draft created!');
       setIsModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Failed to create lease. Check overlapping dates or unit availability.'));
+      toast.error(getErrorMessage(err, 'Failed to create lease. Check overlapping dates or unit availability.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -96,9 +103,10 @@ export default function LeasesPage() {
     if (!user?.organizationId) return;
     try {
       await leaseApi.updateLeaseStatus(leaseId, targetStatus);
+      toast.success(`Lease status updated to ${targetStatus}`);
       await loadData();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Invalid state transition.'));
+      toast.error(getErrorMessage(err, 'Invalid state transition.'));
     }
   };
 
@@ -111,19 +119,20 @@ export default function LeasesPage() {
       a.href = url;
       a.download = `Rent_Agreement_${leaseId}.pdf`;
       a.click();
+      toast.success('Rent Agreement PDF downloaded!');
     } catch (err) {
-      alert('Failed to generate PDF agreement.');
+      toast.error('Failed to generate PDF agreement.');
     }
   };
 
   const getStatusBadge = (status: LeaseStatus) => {
     switch (status) {
       case 'DRAFT':
-        return <Badge variant="warning">Draft</Badge>;
+        return <Badge variant="warning" dot>Draft</Badge>;
       case 'PENDING_ESIGN':
-        return <Badge variant="info">Pending E-Sign</Badge>;
+        return <Badge variant="info" dot>Pending E-Sign</Badge>;
       case 'ACTIVE':
-        return <Badge variant="success">Active Lease</Badge>;
+        return <Badge variant="success" dot>Active Lease</Badge>;
       case 'EXPIRED':
         return <Badge variant="default">Expired</Badge>;
       case 'TERMINATED':
@@ -141,10 +150,11 @@ export default function LeasesPage() {
     setIsTransitioning(true);
     try {
       await leaseApi.updateLeaseStatus(leaseToConfirm.id, leaseToConfirm.targetStatus);
+      toast.success(`Lease transition to ${leaseToConfirm.targetStatus} completed`);
       setLeaseToConfirm(null);
       await loadData();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Invalid state transition.'));
+      toast.error(getErrorMessage(err, 'Invalid state transition.'));
     } finally {
       setIsTransitioning(false);
     }
@@ -158,11 +168,29 @@ export default function LeasesPage() {
     return diffDays >= 0 && diffDays <= 30;
   };
 
+  const filteredLeases = leases.filter((l) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      l.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.tenantId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.unitId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: leases.length },
+    { id: 'ACTIVE', label: 'Active', count: leases.filter((l) => l.status === 'ACTIVE').length },
+    { id: 'DRAFT', label: 'Draft', count: leases.filter((l) => l.status === 'DRAFT').length },
+    { id: 'PENDING_ESIGN', label: 'Pending E-Sign', count: leases.filter((l) => l.status === 'PENDING_ESIGN').length },
+    { id: 'EXPIRED', label: 'Expired', count: leases.filter((l) => l.status === 'EXPIRED').length },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Leases & Agreements</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Leases & Agreements</h1>
           <p className="text-xs text-slate-500 mt-1">
             Automated lease status lifecycle (Draft → Pending E-Sign → Active → Expired), overlap validation & PDF execution.
           </p>
@@ -172,22 +200,32 @@ export default function LeasesPage() {
         </Button>
       </div>
 
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search leases by ID, tenant or unit..."
+        filterOptions={filterOptions}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+      />
+
       {isLoading ? (
         <TableSkeleton rows={5} columns={6} />
-      ) : leases.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
-          <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-          <div>
-            <h3 className="font-bold text-slate-900">No leases created yet</h3>
-            <p className="text-xs text-slate-500 mt-1">Create your first lease agreement from available property units.</p>
-          </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create Rent Agreement
-          </Button>
-        </div>
+      ) : filteredLeases.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title={leases.length === 0 ? 'No leases created yet' : 'No leases match your filter'}
+          description={
+            leases.length === 0
+              ? 'Create your first lease agreement from available property units.'
+              : 'Try clearing your search term or selecting a different status tab.'
+          }
+          actionLabel={leases.length === 0 ? 'Create Rent Agreement' : undefined}
+          onAction={leases.length === 0 ? () => setIsModalOpen(true) : undefined}
+        />
       ) : (
         <div className="space-y-4">
-          {leases.map((lease) => (
+          {filteredLeases.map((lease) => (
             <div
               key={lease.id}
               className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-blue-400 transition-all"

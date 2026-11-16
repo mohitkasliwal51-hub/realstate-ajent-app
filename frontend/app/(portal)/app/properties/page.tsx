@@ -13,10 +13,13 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 
 import { FileUpload } from '@/components/ui/FileUpload';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
 import { validatePincode } from '@/lib/validation';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function PropertiesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const brokerMode = isBrokerMode(user);
   const landlordRequired = isLandlordRequired(user);
 
@@ -25,6 +28,8 @@ export default function PropertiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('ALL');
 
   const [formData, setFormData] = useState({
     landlordId: '',
@@ -64,11 +69,11 @@ export default function PropertiesPage() {
     e.preventDefault();
     if (!user?.organizationId) return;
     if (landlordRequired && !formData.landlordId) {
-      alert('BROKERAGE mode requires selecting a property landlord.');
+      toast.warning('BROKERAGE mode requires selecting a property landlord.');
       return;
     }
     if (formData.pincode && !validatePincode(formData.pincode)) {
-      alert('Invalid 6-digit Indian PIN Code format.');
+      toast.error('Invalid 6-digit Indian PIN Code format.');
       return;
     }
     setIsSubmitting(true);
@@ -78,6 +83,7 @@ export default function PropertiesPage() {
         landlordId: formData.landlordId || undefined,
         images: formData.images.length > 0 ? formData.images : undefined,
       });
+      toast.success('Property created successfully!');
       setIsModalOpen(false);
       setFormData({
         landlordId: '',
@@ -93,7 +99,7 @@ export default function PropertiesPage() {
       });
       await loadProperties();
     } catch (err) {
-      alert('Failed to create property. Please try again.');
+      toast.error('Failed to create property. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,12 +115,30 @@ export default function PropertiesPage() {
     }
   };
 
+  const filteredProperties = properties.filter((p) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.address?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'ALL' || p.type === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: properties.length },
+    { id: 'PG', label: 'PG', count: properties.filter((p) => p.type === 'PG').length },
+    { id: 'FLAT', label: 'Flat', count: properties.filter((p) => p.type === 'FLAT').length },
+    { id: 'HOSTEL', label: 'Hostel', count: properties.filter((p) => p.type === 'HOSTEL').length },
+    { id: 'COMMERCIAL', label: 'Commercial', count: properties.filter((p) => p.type === 'COMMERCIAL').length },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Properties</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Properties</h1>
           <p className="text-xs text-slate-500 mt-1">
             Manage your real estate portfolio, PG accommodations, commercial spaces, and hostel buildings.
           </p>
@@ -124,27 +148,41 @@ export default function PropertiesPage() {
         </Button>
       </div>
 
+      {/* Search and Filters */}
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search properties by name, city or location..."
+        filterOptions={filterOptions}
+        activeFilter={filterType}
+        onFilterChange={setFilterType}
+      />
+
       {/* Property Cards Grid */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-400 text-sm">Loading properties...</div>
-      ) : properties.length === 0 ? (
+      ) : filteredProperties.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-4">
           <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
             <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900">No properties added yet</h3>
+            <h3 className="font-bold text-slate-900">No properties match your filter</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Get started by creating your first property (PG, Hostel, Flat, or Commercial building).
+              {properties.length === 0
+                ? 'Get started by creating your first property (PG, Hostel, Flat, or Commercial building).'
+                : 'Try adjusting your search query or property type filter.'}
             </p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Add Property
-          </Button>
+          {properties.length === 0 && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Add Property
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {properties.map((property) => (
+          {filteredProperties.map((property) => (
             <Link
               key={property.id}
               href={`/app/properties/${property.id}`}

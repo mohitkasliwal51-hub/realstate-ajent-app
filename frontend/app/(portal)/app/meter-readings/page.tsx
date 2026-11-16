@@ -30,9 +30,11 @@ import { FileUpload } from '@/components/ui/FileUpload';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { resolveFileUrl } from '@/lib/api/fileApi';
 import { getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function MeterReadingsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isTenant = user?.role === 'TENANT';
 
   const [readings, setReadings] = useState<MeterReading[]>([]);
@@ -140,7 +142,7 @@ export default function MeterReadingsPage() {
   const handleCreateReading = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.currentReading < formData.previousReading) {
-      alert('Current reading cannot be less than previous reading.');
+      toast.warning('Current reading cannot be less than previous reading.');
       return;
     }
     if (!formData.photoUrl && (formData.meterScope === 'ROOM_AC' || formData.meterScope === 'MASTER_DISCOM')) {
@@ -164,10 +166,11 @@ export default function MeterReadingsPage() {
         photoUrl: formData.photoUrl || undefined,
         notes: formData.notes || undefined,
       });
+      toast.success('Meter reading logged successfully!');
       setIsModalOpen(false);
       await loadData();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to log meter reading'));
+      toast.error(getErrorMessage(err, 'Failed to log meter reading'));
     } finally {
       setIsSubmitting(false);
     }
@@ -178,12 +181,12 @@ export default function MeterReadingsPage() {
       await meterReadingApi.verifyMeterReading(id, status, reason);
       await loadData();
       if (status === 'VERIFIED') {
-        alert('Meter reading confirmed and verified successfully!');
+        toast.success('Meter reading confirmed and verified successfully!');
       } else {
-        alert('Dispute recorded. Management and roommates will be notified.');
+        toast.warning('Dispute recorded. Management and roommates will be notified.');
       }
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to update reading status'));
+      toast.error(getErrorMessage(err, 'Failed to update reading status'));
     }
   };
 
@@ -204,19 +207,19 @@ export default function MeterReadingsPage() {
   const handleTriggerSplit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!splitPropertyId) {
-      alert('Please select a property.');
+      toast.warning('Please select a property.');
       return;
     }
     setIsSplitting(true);
     try {
       const invoices = await meterReadingApi.runUtilitySplit(splitPropertyId, splitBillingMonth);
       setIsSplitModalOpen(false);
-      alert(
-        `Utility split completed successfully! Generated ${invoices.length} decoupled UTILITY_ONLY invoices with audit metadata.`
+      toast.success(
+        `Utility split completed! Generated ${invoices.length} decoupled utility invoices.`
       );
       await loadData();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to run utility split'));
+      toast.error(getErrorMessage(err, 'Failed to run utility split'));
     } finally {
       setIsSplitting(false);
     }

@@ -25,6 +25,7 @@ export default function PublicShowcasePage({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [inquiryData, setInquiryData] = useState({
     name: '',
@@ -52,12 +53,14 @@ export default function PublicShowcasePage({
     setSelectedProperty(property);
     setIsModalOpen(true);
     setSuccessMessage(false);
+    setErrorMessage(null);
   };
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showcase) return;
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       await leadApi.createLead({
         propertyId: selectedProperty?.id || '',
@@ -70,7 +73,7 @@ export default function PublicShowcasePage({
       setSuccessMessage(true);
       setInquiryData({ name: '', phone: '', email: '', notes: '' });
     } catch (err) {
-      alert('Failed to submit inquiry. Please try again.');
+      setErrorMessage('Failed to submit inquiry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -205,6 +208,11 @@ export default function PublicShowcasePage({
           </div>
         ) : (
           <form onSubmit={handleInquirySubmit} className="space-y-4">
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {errorMessage}
+              </div>
+            )}
             <Input
               label="Your Full Name"
               placeholder="e.g. Ankit Sharma"

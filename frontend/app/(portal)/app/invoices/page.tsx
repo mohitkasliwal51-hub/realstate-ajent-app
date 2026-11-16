@@ -11,15 +11,21 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { UtilitySplitAuditCard } from '@/components/invoice/UtilitySplitAuditCard';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function InvoicesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const [formData, setFormData] = useState({
     leaseId: '',
@@ -92,10 +98,11 @@ export default function InvoicesPage() {
           },
         ],
       });
+      toast.success('Invoice created successfully!');
       setIsModalOpen(false);
       await loadData();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to create invoice'));
+      toast.error(getErrorMessage(err, 'Failed to create invoice'));
     } finally {
       setIsSubmitting(false);
     }
@@ -109,26 +116,46 @@ export default function InvoicesPage() {
       a.href = url;
       a.download = `Invoice_${id}.pdf`;
       a.click();
+      toast.success('Invoice PDF downloaded!');
     } catch (err) {
-      alert('Failed to download invoice PDF.');
+      toast.error('Failed to download invoice PDF.');
     }
   };
 
   const getStatusBadge = (status: InvoiceStatus) => {
     switch (status) {
-      case 'PAID': return <Badge variant="success">Paid</Badge>;
-      case 'PARTIAL': return <Badge variant="warning">Partially Paid</Badge>;
-      case 'OVERDUE': return <Badge variant="danger">Overdue</Badge>;
-      case 'UNPAID': return <Badge variant="info" className="font-medium">Unpaid</Badge>;
+      case 'PAID': return <Badge variant="success" dot>Paid</Badge>;
+      case 'PARTIAL': return <Badge variant="warning" dot>Partially Paid</Badge>;
+      case 'OVERDUE': return <Badge variant="danger" dot>Overdue</Badge>;
+      case 'UNPAID': return <Badge variant="info" dot>Unpaid</Badge>;
       default: return <Badge variant="default">{status}</Badge>;
     }
   };
+
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.tenantId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'UNPAID' && (inv.status === 'UNPAID' || inv.status === 'PARTIAL')) ||
+      inv.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filterOptions = [
+    { id: 'ALL', label: 'All', count: invoices.length },
+    { id: 'UNPAID', label: 'Unpaid', count: invoices.filter((i) => i.status === 'UNPAID' || i.status === 'PARTIAL').length },
+    { id: 'PAID', label: 'Paid', count: invoices.filter((i) => i.status === 'PAID').length },
+    { id: 'OVERDUE', label: 'Overdue', count: invoices.filter((i) => i.status === 'OVERDUE').length },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{isTenant ? 'My Invoices' : 'Tax & Rent Invoices'}</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{isTenant ? 'My Invoices' : 'Tax & Rent Invoices'}</h1>
           <p className="text-xs text-slate-500 mt-1">
             {isTenant
               ? 'View and download your itemized monthly rent and utility invoices.'
@@ -142,23 +169,31 @@ export default function InvoicesPage() {
         )}
       </div>
 
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="Search by invoice number..."
+        filterOptions={filterOptions}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+      />
+
       {isLoading ? (
         <TableSkeleton rows={5} columns={6} />
-      ) : invoices.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
-          <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="font-bold text-slate-900">{isTenant ? 'No invoices found' : 'No invoices generated'}</h3>
-          <p className="text-xs text-slate-500">
-            {isTenant
+      ) : filteredInvoices.length === 0 ? (
+        <EmptyState
+          icon={FileSpreadsheet}
+          title={isTenant ? 'No invoices found' : 'No invoices match your filter'}
+          description={
+            isTenant
               ? 'You do not have any invoices at this time.'
-              : 'Issue your first itemized invoice linked to an active lease.'}
-          </p>
-          {!isTenant && (
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Create Invoice
-            </Button>
-          )}
-        </div>
+              : invoices.length === 0
+              ? 'Issue your first itemized invoice linked to an active lease.'
+              : 'Try clearing your search term or switching status tabs.'
+          }
+          actionLabel={!isTenant && invoices.length === 0 ? 'Create Invoice' : undefined}
+          onAction={!isTenant && invoices.length === 0 ? () => setIsModalOpen(true) : undefined}
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -174,7 +209,7 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {invoices.map((inv) => (
+                {filteredInvoices.map((inv) => (
                   <React.Fragment key={inv.id}>
                     <tr className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">

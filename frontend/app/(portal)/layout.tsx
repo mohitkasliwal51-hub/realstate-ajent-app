@@ -6,6 +6,8 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth/AuthContext';
 
+import { ToastProvider } from '@/lib/toast/ToastContext';
+
 export default function PortalLayout({
   children,
 }: {
@@ -14,6 +16,7 @@ export default function PortalLayout({
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -46,7 +49,7 @@ export default function PortalLayout({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <span>Loading StayFile Workspace...</span>
+          <span className="font-semibold tracking-wide">Loading StayFile Workspace...</span>
         </div>
       </div>
     );
@@ -55,14 +58,19 @@ export default function PortalLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
-          {children}
-        </main>
+    <ToastProvider>
+      <div className="min-h-screen flex bg-slate-50">
+        <Sidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header onMenuClick={() => setIsMobileSidebarOpen(true)} />
+          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

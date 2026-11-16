@@ -11,9 +11,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
+import { useToast } from '@/lib/toast/ToastContext';
 
 export default function PayoutsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const brokerMode = isBrokerMode(user);
 
   const [payouts, setPayouts] = useState<LandlordPayout[]>([]);
@@ -54,10 +56,11 @@ export default function PayoutsPage() {
     setIsSubmitting(true);
     try {
       await payoutApi.calculateMonthlyPayout(selectedLandlordId, periodMonth);
+      toast.success('Monthly payout calculated successfully!');
       setIsModalOpen(false);
       await loadData();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to calculate monthly payout'));
+      toast.error(getErrorMessage(err, 'Failed to calculate monthly payout'));
     } finally {
       setIsSubmitting(false);
     }
@@ -71,8 +74,9 @@ export default function PayoutsPage() {
       a.href = url;
       a.download = `Payout_${id}.pdf`;
       a.click();
+      toast.success('Payout statement PDF downloaded!');
     } catch (err) {
-      alert('Failed to download payout statement PDF.');
+      toast.error('Failed to download payout statement PDF.');
     }
   };
 
