@@ -7,7 +7,7 @@ StayFile is a property operations OS for brokers, owners, property managers, sta
 - **Framework**: Next.js 15 (App Router)
 - **Styling**: Tailwind CSS + Lucide Icons
 - **HTTP Client**: Axios (configured with auth token interceptors)
-- **State Management**: React Context (`AuthContext.tsx`)
+- **State Management**: React Context (`AuthContext.tsx`, `ToastContext.tsx`)
 - **Backend API**: Spring Boot REST API (`http://localhost:8080`)
 
 ## Route Structure
@@ -18,15 +18,21 @@ app/
 │   ├── login/          # Staff & Owner Login
 │   └── register/       # Organization Registration
 ├── (portal)/
-│   ├── app/            # Staff Portal Dashboard
-│   ├── properties/     # Properties & Unit Inventory
-│   │   └── [id]/       # Property Details & Rooms/Beds Inventory
-│   ├── tenants/        # Tenant Onboarding & KYC
-│   ├── leases/         # Lease Workflow & PDF Download
-│   ├── receipts/       # Rent Receipts Generation
-│   └── settings/       # Organization Branding Settings
-├── tenant/             # Tenant Self-Service Portal
-└── p/[organizationSlug]/ # Public White-Label Property Showcase
+│   ├── app/            # Operations Dashboard & KPI Cards
+│   │   ├── properties/ # Properties & Unit Inventory
+│   │   │   └── [id]/   # Property Details & Rooms/Beds Inventory
+│   │   ├── landlords/  # Landlords Directory (Brokerage Mode)
+│   │   ├── tenants/    # Tenant Onboarding & KYC Records
+│   │   ├── leases/     # Lease Lifecycle, Clauses & PDF Generator
+│   │   ├── invoices/   # Rent & Electricity Invoices (GST & HRA compliant)
+│   │   ├── receipts/   # Official Rent Receipts & PDF Downloads
+│   │   ├── payouts/    # Landlord Payout Calculations (Brokerage Mode)
+│   │   ├── meter-readings/ # Utility Sub-Meters & Multi-Tier Split Engine
+│   │   ├── tickets/    # Resident Maintenance Desk & Workflow
+│   │   ├── leads/      # CRM Inquiries from Public Showcase
+│   │   ├── settings/   # Organization Branding, Modes & Bank Details
+│   │   └── tenant/     # Tenant Self-Service Portal (Residence, Invoices, Tickets)
+└── p/[organizationSlug]/ # Public White-Label Property Showcase & Lead Capture
 ```
 
 ## Running Locally
