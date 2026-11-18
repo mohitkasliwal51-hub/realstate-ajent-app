@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .requestMatchers("/api/v1/properties/public", "/api/v1/showcase/**", "/uploads/public/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/leads").permitAll()
+                        .requestMatchers("/api/v1/webhooks/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

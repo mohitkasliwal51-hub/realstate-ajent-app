@@ -70,7 +70,8 @@ Columns: `id`, `organization_id`, `email`, `password_hash`, `phone`, `full_name`
 `updated_at`.
 
 `organization_id` references `organizations`. `(id, organization_id)` is unique,
-and `(organization_id, email)` has a unique index.
+`(organization_id, email)` has a scoped unique index, and `email` has a global unique
+index (`uk_profiles_email_global`).
 
 ### `branding_settings`
 
@@ -86,12 +87,15 @@ There is one branding record per organization.
 ### `landlords`
 
 Columns: `id`, `managing_organization_id`, `profile_id`, `owner_type`,
-`legal_name`, `email`, `phone`, `pan`, `gstin`, `address`,
-`bank_account_number`, `bank_ifsc_code`, `bank_name`, `account_holder_name`,
-`owner_upi_id`, `is_active`, `metadata`, `created_at`, `updated_at`.
+`legal_name`, `email`, `phone`, `pan`, `pan_last4`, `gstin`, `address`,
+`bank_account_number`, `bank_account_last4`, `bank_ifsc_code`, `bank_name`,
+`account_holder_name`, `owner_upi_id`, `is_active`, `metadata`, `created_at`,
+`updated_at`.
 
 `managing_organization_id` references `organizations`. `profile_id` is an
-optional profile link. `(id, managing_organization_id)` is unique.
+optional profile link. `(id, managing_organization_id)` is unique. Encrypted PAN
+and bank account numbers have corresponding masked display columns (`pan_last4`,
+`bank_account_last4`).
 
 ## Property and Lease Tables
 
@@ -156,13 +160,18 @@ template references are organization-scoped. `(id, organization_id)` is unique.
 
 ### `meter_readings`
 
-Columns: `id`, `organization_id`, `unit_id`, `meter_type`, `previous_reading`,
-`current_reading`, `units_consumed`, `rate_per_unit`, `total_charge`,
-`reading_date`, `is_billed`, `notes`, `created_at`, `updated_at`.
+Columns: `id`, `organization_id`, `property_id`, `unit_id`, `meter_type`,
+`meter_scope`, `photo_url`, `submitted_by_user_id`, `verification_status`,
+`dispute_reason`, `previous_reading`, `current_reading`, `units_consumed`,
+`rate_per_unit`, `total_charge`, `reading_date`, `is_billed`, `notes`,
+`created_at`, `updated_at`.
 
 `units_consumed` and `total_charge` are stored generated columns. `meter_type`
-must be `ELECTRICITY`, `WATER`, or `GAS`. Current readings cannot be lower than
-previous readings, and rates cannot be negative.
+must be `ELECTRICITY`, `WATER`, or `GAS`. `meter_scope` designates sub-meter
+scope (`ROOM_AC`, `MASTER_DISCOM`, `HALL_AC`, `COMMON_AREA`). `photo_url`
+stores meter dial photo proof for transparent tenant billing. `verification_status`
+supports `PENDING`, `VERIFIED`, and `DISPUTED`. Current readings cannot be lower than
+previous readings, and rates cannot be negative. Unit reference is organization-scoped.
 
 ### `invoices`
 
@@ -198,11 +207,15 @@ organization-scoped. `(id, organization_id)` is unique.
 
 Columns: `id`, `payout_number`, `organization_id`, `landlord_id`, `property_id`,
 `total_collected`, `commission_amount`, `deductions_amount`,
-`net_payout_amount`, `payout_mode`, `payout_status`, `utr_number`, `payout_date`,
-`notes`, `statement_pdf_url`, `created_at`, `updated_at`.
+`net_payout_amount`, `period_month`, `period_start`, `period_end`, `payout_mode`,
+`payout_status`, `utr_number`, `payout_date`, `notes`, `statement_pdf_url`,
+`created_at`, `updated_at`.
 
 Collected, commission, deductions, and net payout amounts cannot be negative.
-Landlord and optional property references are organization-scoped.
+A check constraint enforces `commission_amount + deductions_amount <= total_collected`.
+`period_month` (e.g. `'2026-10'`) has a unique index per landlord and organization
+to prevent duplicate monthly settlements. Landlord and optional property references
+are organization-scoped.
 
 ## Compliance and Integration Tables
 
@@ -267,7 +280,8 @@ The organization link is optional for platform-level integration events.
 
 ### `update_updated_at_column`
 
-Before-update triggers maintain `updated_at` on all 21 tables.
+Before-update triggers maintain `updated_at` on 20 tables (all except
+`invoice_line_items`, which is an append-only line table with `created_at`).
 
 ### `sync_unit_lease_status`
 
@@ -289,23 +303,29 @@ An after-insert/update/delete trigger on `receipts`:
 
 ## Indexes and Uniqueness
 
-- Unique profile email per organization.
-- Unique receipt, invoice, and payout numbers per organization.
-- One active lease per unit.
-- One `MONTHLY_RENT` invoice per lease and billing-period start.
-- Unique tenant phone per organization.
-- Unique tenant `user_id` (partial index, ignores NULL).
-- Organization/status and tenant/status lookup indexes for leases and invoices.
-- Unit, meter, receipt, payout, WhatsApp, lead, ticket, and integration lookup
-  indexes.
-- Overdue lookup index for invoices with status `UNPAID` or `PARTIAL`.
+- Globally unique profile email (`uk_profiles_email_global`) and organization-scoped unique email (`uk_profiles_organization_email`).
+- Unique receipt, invoice, and payout numbers per organization (`uniq_receipt_number_per_org`, `uniq_invoice_number_per_org`, `uniq_payout_number_per_org`).
+- One active lease per unit (`uq_one_active_lease_per_unit`).
+- One `MONTHLY_RENT` invoice per lease and billing-period start (`idx_unique_monthly_rent_invoice`).
+- Prevent duplicate landlord payouts for the same period (`uq_payout_landlord_period` on `organization_id, landlord_id, period_month`).
+- Prevent duplicate receipt creation for the same transaction reference (`uq_receipts_org_tx_ref` on `organization_id, transaction_reference`).
+- Unique tenant phone per organization (`uq_org_phone`).
+- Unique tenant `user_id` (partial index, ignores NULL) (`uq_tenants_user_id`).
+- Organization/status and tenant/status lookup indexes for leases and invoices (`idx_leases_org_status`, `idx_invoices_org_status`, `idx_invoices_tenant_status`).
+- Unit, meter, receipt, payout, WhatsApp, lead, ticket, and integration lookup indexes.
+- Overdue lookup index for invoices with status `UNPAID` or `PARTIAL` (`idx_invoices_overdue_lookup`).
 
 ## Row-Level Security
 
 RLS is enabled on all 21 tables. Public read policies expose active properties
-and available units. Organization policies use
-`public.current_organization_id()`, which reads the PostgreSQL setting
+(`is_active = TRUE`) and available units (`status = 'AVAILABLE'`). Organization
+policies use `public.current_organization_id()`, which reads the PostgreSQL setting
 `app.current_organization_id`.
+
+Defense-in-depth: `FORCE ROW LEVEL SECURITY` is applied to 11 core data
+tables (`landlords`, `properties`, `units`, `tenants`, `leases`, `meter_readings`,
+`invoices`, `invoice_line_items`, `receipts`, `landlord_payouts`, `maintenance_tickets`),
+ensuring table owners cannot bypass policies.
 
 The setting must be applied on the same database connection used by the query.
 The Docker development configuration currently connects as the PostgreSQL
