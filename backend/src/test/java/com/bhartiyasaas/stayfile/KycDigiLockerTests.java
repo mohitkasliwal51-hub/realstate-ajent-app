@@ -145,7 +145,7 @@ class KycDigiLockerTests {
                 .status("AUTHENTICATED")
                 .build();
 
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(cfResponse);
 
         DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus("sf_dgl_123456", adminUser);
@@ -166,7 +166,7 @@ class KycDigiLockerTests {
                 .status("PENDING")
                 .build();
 
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(cfResponse);
 
         DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus("sf_dgl_123456", adminUser);
@@ -187,7 +187,7 @@ class KycDigiLockerTests {
                 .status("EXPIRED")
                 .build();
 
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(cfResponse);
 
         DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus("sf_dgl_123456", adminUser);
@@ -207,7 +207,7 @@ class KycDigiLockerTests {
                 .status("CONSENT_DENIED")
                 .build();
 
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(cfResponse);
 
         DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus("sf_dgl_123456", adminUser);
@@ -262,7 +262,7 @@ class KycDigiLockerTests {
                 .build();
 
         when(tenantRepository.findByIdAndOrganizationId(tenantId, orgId)).thenReturn(Optional.of(tenant));
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(statusResponse);
         when(cashfreeHttpClient.get(eq("/digilocker/document/AADHAAR"), any(), eq(CashfreeDigiLockerAadhaarDocumentResponse.class), eq(orgId)))
                 .thenReturn(cfResponse);
@@ -311,7 +311,7 @@ class KycDigiLockerTests {
                 .build();
 
         when(tenantRepository.findByIdAndOrganizationId(tenantId, orgId)).thenReturn(Optional.of(tenant));
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(statusResponse);
 
         DigiLockerVerificationCompleteResponse response = kycVerificationService.completeDigiLocker("sf_dgl_123456", tenantId, adminUser);
@@ -340,7 +340,7 @@ class KycDigiLockerTests {
                 .build();
 
         when(tenantRepository.findByIdAndOrganizationId(tenantId, orgId)).thenReturn(Optional.of(tenant));
-        when(cashfreeHttpClient.get(eq("/digilocker/status"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
                 .thenReturn(statusResponse);
         when(tenantRepository.save(any(Tenant.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -353,5 +353,79 @@ class KycDigiLockerTests {
         ArgumentCaptor<Tenant> tenantCaptor = ArgumentCaptor.forClass(Tenant.class);
         verify(tenantRepository).save(tenantCaptor.capture());
         assertThat(tenantCaptor.getValue().getKycStatus()).isEqualTo(VerificationStatus.REJECTED);
+    }
+
+    @Test
+    @DisplayName("Should mark Tenant as REJECTED when Aadhaar is not linked in DigiLocker (AADHAAR_NOT_LINKED)")
+    void testCompleteDigiLocker_AadhaarNotLinked_RejectsTenant() {
+        UUID tenantId = UUID.randomUUID();
+        Tenant tenant = Tenant.builder()
+                .id(tenantId)
+                .organization(organization)
+                .fullName("Sunil Verma")
+                .build();
+
+        CashfreeDigiLockerStatusResponse statusResponse = CashfreeDigiLockerStatusResponse.builder()
+                .verificationId("sf_dgl_123456")
+                .status("AUTHENTICATED")
+                .build();
+
+        CashfreeDigiLockerAadhaarDocumentResponse docResponse = CashfreeDigiLockerAadhaarDocumentResponse.builder()
+                .status("AADHAAR_NOT_LINKED")
+                .referenceId("98765")
+                .verificationId("sf_dgl_123456")
+                .documentType("AADHAAR")
+                .build();
+
+        when(tenantRepository.findByIdAndOrganizationId(tenantId, orgId)).thenReturn(Optional.of(tenant));
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+                .thenReturn(statusResponse);
+        when(cashfreeHttpClient.get(eq("/digilocker/document/AADHAAR"), any(), eq(CashfreeDigiLockerAadhaarDocumentResponse.class), eq(orgId)))
+                .thenReturn(docResponse);
+        when(tenantRepository.save(any(Tenant.class))).thenAnswer(i -> i.getArgument(0));
+
+        DigiLockerVerificationCompleteResponse response = kycVerificationService.completeDigiLocker("sf_dgl_123456", tenantId, adminUser);
+
+        assertThat(response.isVerified()).isFalse();
+        assertThat(response.getStatus()).isEqualTo("AADHAAR_NOT_LINKED");
+        assertThat(response.getMessage()).contains("Aadhaar is not linked to their DigiLocker account");
+
+        ArgumentCaptor<Tenant> tenantCaptor = ArgumentCaptor.forClass(Tenant.class);
+        verify(tenantRepository).save(tenantCaptor.capture());
+        assertThat(tenantCaptor.getValue().getKycStatus()).isEqualTo(VerificationStatus.REJECTED);
+    }
+
+    @Test
+    @DisplayName("Should keep DigiLocker completion pending when document validation returns 202")
+    void testCompleteDigiLocker_ValidationPending_DoesNotRejectTenant() {
+        UUID tenantId = UUID.randomUUID();
+        Tenant tenant = Tenant.builder()
+                .id(tenantId)
+                .organization(organization)
+                .fullName("Amit Sharma")
+                .build();
+
+        CashfreeDigiLockerStatusResponse statusResponse = CashfreeDigiLockerStatusResponse.builder()
+                .verificationId("sf_dgl_123456")
+                .status("AUTHENTICATED")
+                .build();
+        CashfreeDigiLockerAadhaarDocumentResponse docResponse =
+                CashfreeDigiLockerAadhaarDocumentResponse.builder()
+                        .code("VALIDATION_PENDING")
+                        .build();
+
+        when(tenantRepository.findByIdAndOrganizationId(tenantId, orgId)).thenReturn(Optional.of(tenant));
+        when(cashfreeHttpClient.get(eq("/digilocker"), any(), eq(CashfreeDigiLockerStatusResponse.class), eq(orgId)))
+                .thenReturn(statusResponse);
+        when(cashfreeHttpClient.get(eq("/digilocker/document/AADHAAR"), any(), eq(CashfreeDigiLockerAadhaarDocumentResponse.class), eq(orgId)))
+                .thenReturn(docResponse);
+
+        DigiLockerVerificationCompleteResponse response =
+                kycVerificationService.completeDigiLocker("sf_dgl_123456", tenantId, adminUser);
+
+        assertThat(response.isVerified()).isFalse();
+        assertThat(response.getStatus()).isEqualTo("VALIDATION_PENDING");
+        assertThat(response.getMessage()).contains("still pending");
+        verify(tenantRepository, never()).save(any(Tenant.class));
     }
 }

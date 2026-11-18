@@ -59,6 +59,12 @@ public interface KycVerificationService {
             SecurityUser currentUser
     );
 
+    com.bhartiyasaas.stayfile.dto.response.DigiLockerStatusResponse getDigiLockerStatus(
+            String verificationId,
+            UUID tenantId,
+            SecurityUser currentUser
+    );
+
     /**
      * Completes DigiLocker verification after user OTP consent.
      * Retrieves official UIDAI demographic records (Name, Masked Aadhaar, DOB, Gender, Address, Photo),

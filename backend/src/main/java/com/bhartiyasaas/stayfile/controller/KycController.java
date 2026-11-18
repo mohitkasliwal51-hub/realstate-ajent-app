@@ -57,7 +57,7 @@ public class KycController {
     @PostMapping("/digilocker/initiate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     public ResponseEntity<ApiResponse<DigiLockerInitiateResponse>> initiateDigiLocker(
-            @RequestBody(required = false) DigiLockerInitiateRequest request,
+            @Valid @RequestBody(required = false) DigiLockerInitiateRequest request,
             @AuthenticationPrincipal SecurityUser currentUser) {
         if (request == null) {
             request = new DigiLockerInitiateRequest();
@@ -70,8 +70,9 @@ public class KycController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
     public ResponseEntity<ApiResponse<com.bhartiyasaas.stayfile.dto.response.DigiLockerStatusResponse>> getDigiLockerStatus(
             @PathVariable String verificationId,
+            @RequestParam(value = "tenantId", required = false) UUID tenantId,
             @AuthenticationPrincipal SecurityUser currentUser) {
-        com.bhartiyasaas.stayfile.dto.response.DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus(verificationId, currentUser);
+        com.bhartiyasaas.stayfile.dto.response.DigiLockerStatusResponse response = kycVerificationService.getDigiLockerStatus(verificationId, tenantId, currentUser);
         return ResponseEntity.ok(ApiResponse.success(response, response.getMessage()));
     }
 

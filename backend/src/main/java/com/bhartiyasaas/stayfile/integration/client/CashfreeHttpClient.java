@@ -71,7 +71,7 @@ public class CashfreeHttpClient {
                     .body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, requestJson, responseBody, 200, latencyMs, null);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, 200, latencyMs, null);
 
             return fromJson(responseBody, responseType);
         } catch (RestClientResponseException ex) {
@@ -79,13 +79,13 @@ public class CashfreeHttpClient {
             String errorBody = ex.getResponseBodyAsString();
             String userMsg = extractErrorMessage(errorBody, ex.getStatusText());
 
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, requestJson, errorBody, ex.getStatusCode().value(), latencyMs, userMsg);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, ex.getStatusCode().value(), latencyMs, userMsg);
             log.error("Cashfree POST '{}' failed [HTTP {}]: {}", fullUrl, ex.getStatusCode().value(), userMsg);
 
             throw new IntegrationException(PROVIDER, ex.getStatusCode().value(), errorBody, userMsg);
         } catch (Exception ex) {
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, requestJson, null, 502, latencyMs, ex.getMessage());
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, 502, latencyMs, ex.getMessage());
             log.error("Cashfree connection error calling '{}': {}", fullUrl, ex.getMessage());
 
             throw new IntegrationException(PROVIDER, "Unable to communicate with Cashfree: " + ex.getMessage(), ex);
@@ -112,7 +112,7 @@ public class CashfreeHttpClient {
                     .body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, responseBody, 200, latencyMs, null);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, null, 200, latencyMs, null);
 
             return fromJson(responseBody, responseType);
         } catch (RestClientResponseException ex) {
@@ -120,7 +120,7 @@ public class CashfreeHttpClient {
             String errorBody = ex.getResponseBodyAsString();
             String userMsg = extractErrorMessage(errorBody, ex.getStatusText());
 
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, errorBody, ex.getStatusCode().value(), latencyMs, userMsg);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, null, ex.getStatusCode().value(), latencyMs, userMsg);
             log.error("Cashfree Multipart POST '{}' failed [HTTP {}]: {}", fullUrl, ex.getStatusCode().value(), userMsg);
 
             throw new IntegrationException(PROVIDER, ex.getStatusCode().value(), errorBody, userMsg);
@@ -152,7 +152,7 @@ public class CashfreeHttpClient {
                     .body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, responseBody, 200, latencyMs, null);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, 200, latencyMs, null);
 
             return fromJson(responseBody, responseType);
         } catch (RestClientResponseException ex) {
@@ -160,7 +160,7 @@ public class CashfreeHttpClient {
             String errorBody = ex.getResponseBodyAsString();
             String userMsg = extractErrorMessage(errorBody, ex.getStatusText());
 
-            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, errorBody, ex.getStatusCode().value(), latencyMs, userMsg);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, ex.getStatusCode().value(), latencyMs, userMsg);
             log.error("Cashfree GET '{}' failed [HTTP {}]: {}", fullUrl, ex.getStatusCode().value(), userMsg);
 
             throw new IntegrationException(PROVIDER, ex.getStatusCode().value(), errorBody, userMsg);
@@ -175,7 +175,7 @@ public class CashfreeHttpClient {
 
     private void validateCredentials() {
         if (clientId.isEmpty() || clientSecret.isEmpty()) {
-            throw new ProviderUnavailableException("Cashfree API credentials are not configured. Please supply CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET.");
+            throw new ProviderUnavailableException("Cashfree Secure ID credentials are not configured. Please supply CASHFREE_VERIFICATION_CLIENT_ID and CASHFREE_VERIFICATION_CLIENT_SECRET.");
         }
     }
 

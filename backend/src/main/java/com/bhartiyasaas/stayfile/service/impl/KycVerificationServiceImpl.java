@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.net.URI;
 
 @Slf4j
 @Service
@@ -118,7 +119,11 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                 organizationId
         );
 
-        boolean isValid = Boolean.TRUE.equals(cfResponse.getValid());
+        String nameMatchResult = cfResponse.getNameMatchResult();
+        boolean nameMismatch = name != null
+                && ("NO_MATCH".equalsIgnoreCase(nameMatchResult)
+                    || "POOR_PARTIAL_MATCH".equalsIgnoreCase(nameMatchResult));
+        boolean isValid = Boolean.TRUE.equals(cfResponse.getValid()) && !nameMismatch;
 
         // Structured verification audit metadata
         Map<String, Object> panMeta = new HashMap<>();
@@ -167,7 +172,9 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                 .panStatusCode(cfResponse.getPanStatusCode())
                 .panStatusDescription(cfResponse.getPanStatusDesc())
                 .referenceId(cfResponse.getReferenceIdAsString())
-                .message(cfResponse.getMessage() != null ? cfResponse.getMessage() : (isValid ? "PAN is valid" : "PAN is invalid"))
+                .message(nameMismatch
+                        ? "PAN exists, but the provided name does not match sufficiently"
+                        : (cfResponse.getMessage() != null ? cfResponse.getMessage() : (isValid ? "PAN is valid" : "PAN is invalid")))
                 .linkedToTenant(targetTenant != null)
                 .linkedToLandlord(targetLandlord != null)
                 .build();
@@ -233,8 +240,8 @@ public class KycVerificationServiceImpl implements KycVerificationService {
         bodyParts.add("image", fileResource);
         bodyParts.add("verification_id", verificationId);
 
-        String auditSummary = String.format("{\"verification_id\":\"%s\",\"filename\":\"%s\",\"size\":%d,\"content_type\":\"%s\"}",
-                verificationId, filename, file.getSize(), file.getContentType());
+        String auditSummary = String.format("{\"verification_id\":\"%s\",\"size\":%d,\"content_type\":\"%s\"}",
+                verificationId, file.getSize(), file.getContentType());
 
         log.info("Sending Aadhaar masking request verification_id: {} for org: {}", verificationId, organizationId);
         CashfreeAadhaarMaskingResponse cfResponse = cashfreeHttpClient.postMultipart(
@@ -338,9 +345,15 @@ public class KycVerificationServiceImpl implements KycVerificationService {
         String redirectUrl = request.getRedirectUrl() != null && !request.getRedirectUrl().isBlank()
                 ? request.getRedirectUrl().trim()
                 : "https://stayfile.in/kyc/callback";
+        if (!isHttpsUrl(redirectUrl)) {
+            throw new BadRequestException("DigiLocker redirect URL must use HTTPS");
+        }
         String userFlow = request.getUserFlow() != null && !request.getUserFlow().isBlank()
                 ? request.getUserFlow().trim().toLowerCase()
                 : "signup";
+        if (!List.of("signup", "login", "kyc").contains(userFlow)) {
+            throw new BadRequestException("Invalid DigiLocker user flow");
+        }
 
         CashfreeDigiLockerCreateUrlRequest cfRequest = CashfreeDigiLockerCreateUrlRequest.builder()
                 .verificationId(verificationId)
@@ -384,12 +397,22 @@ public class KycVerificationServiceImpl implements KycVerificationService {
     @Override
     @Transactional(readOnly = true)
     public DigiLockerStatusResponse getDigiLockerStatus(String verificationId, SecurityUser currentUser) {
+        return getDigiLockerStatus(verificationId, null, currentUser);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DigiLockerStatusResponse getDigiLockerStatus(String verificationId, UUID tenantId, SecurityUser currentUser) {
         if (verificationId == null || verificationId.isBlank()) {
             throw new BadRequestException("Verification ID is required");
         }
         UUID organizationId = currentUser.getOrganizationId();
+        if (organizationId == null && currentUser.getRole() != UserRole.SUPER_ADMIN) {
+            throw new AccessDeniedException("Organization context is required for KYC verification");
+        }
+        validateDigiLockerTenantSession(verificationId, tenantId, organizationId, currentUser);
         CashfreeDigiLockerStatusResponse statusResponse = cashfreeHttpClient.get(
-                "/digilocker/status",
+                "/digilocker",
                 Map.of("verification_id", verificationId.trim()),
                 CashfreeDigiLockerStatusResponse.class,
                 organizationId
@@ -465,10 +488,11 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                         .orElseThrow(() -> new ResourceNotFoundException("Tenant not found with ID: " + tenantId));
             }
         }
+        validateDigiLockerTenantSession(verificationId, tenantId, organizationId, currentUser);
 
         // Edge Case 1: Check session status first to prevent premature document retrieval
         CashfreeDigiLockerStatusResponse statusResponse = cashfreeHttpClient.get(
-                "/digilocker/status",
+                "/digilocker",
                 Map.of("verification_id", verificationId.trim()),
                 CashfreeDigiLockerStatusResponse.class,
                 organizationId
@@ -512,6 +536,18 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                     .build();
         }
 
+        if (statusResponse.getDocumentConsent() != null
+                    && !statusResponse.getDocumentConsent().contains("AADHAAR")) {
+            return DigiLockerVerificationCompleteResponse.builder()
+                        .verified(false)
+                        .status(rawStatus)
+                        .tenantId(targetTenant != null ? targetTenant.getId() : null)
+                        .verificationId(verificationId)
+                        .referenceId(statusResponse.getReferenceIdAsString())
+                        .message("Aadhaar document consent was not granted. Please reinitiate DigiLocker verification.")
+                        .build();
+        }
+
         log.info("Fetching verified DigiLocker Aadhaar document for verification_id: {} in org: {}", verificationId, organizationId);
         CashfreeDigiLockerAadhaarDocumentResponse docResponse = cashfreeHttpClient.get(
                 "/digilocker/document/AADHAAR",
@@ -520,11 +556,28 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                 organizationId
         );
 
-        boolean isValid = "VALID".equalsIgnoreCase(docResponse.getStatus());
+        if (docResponse.isValidationPending()) {
+            return DigiLockerVerificationCompleteResponse.builder()
+                    .verified(false)
+                    .status("VALIDATION_PENDING")
+                    .tenantId(targetTenant != null ? targetTenant.getId() : null)
+                    .verificationId(verificationId)
+                    .referenceId(docResponse.getReferenceIdAsString())
+                    .message("Aadhaar document validation is still pending. Please retry after some time.")
+                    .build();
+        }
 
-        // Edge Case 2: Document missing or invalid in DigiLocker (e.g. Aadhaar unlinked)
+        boolean isValid = docResponse.isSuccessful();
+
+        // Edge Case 2: Document missing, invalid, or unlinked in DigiLocker
         if (!isValid) {
-            String failMsg = "Aadhaar document could not be retrieved or is not valid in DigiLocker (Status: " + docResponse.getStatus() + ").";
+            String failMsg;
+            if ("AADHAAR_NOT_LINKED".equalsIgnoreCase(docResponse.getStatus())) {
+                failMsg = "User's Aadhaar is not linked to their DigiLocker account. Please link Aadhaar in DigiLocker or upload Aadhaar document directly.";
+            } else {
+                failMsg = "Aadhaar document could not be retrieved or is not valid in DigiLocker (Status: " + docResponse.getStatus() + ").";
+            }
+
             if (targetTenant != null) {
                 targetTenant.setKycStatus(VerificationStatus.REJECTED);
                 Map<String, Object> dlFailMeta = new HashMap<>();
@@ -615,6 +668,68 @@ public class KycVerificationServiceImpl implements KycVerificationService {
                 .referenceId(docResponse.getReferenceIdAsString())
                 .message("Aadhaar verified successfully through DigiLocker")
                 .build();
+    }
+
+    private void validateDigiLockerTenantSession(
+            String verificationId,
+            UUID tenantId,
+            UUID organizationId,
+            SecurityUser currentUser) {
+        if (organizationId == null) {
+            throw new AccessDeniedException("Organization context is required for KYC verification");
+        }
+
+        Tenant targetTenant = null;
+        if (tenantId != null) {
+            targetTenant = tenantRepository.findByIdAndOrganizationId(tenantId, organizationId).orElse(null);
+            if (targetTenant == null) {
+                throw new ResourceNotFoundException("Tenant not found with ID: " + tenantId);
+            }
+            if (currentUser.getRole() == UserRole.TENANT) {
+                tenantAccessService.validateTenantOwnership(targetTenant, "tenant KYC");
+            }
+        } else if (currentUser.getRole() == UserRole.TENANT) {
+            targetTenant = tenantRepository.findByUserIdAndOrganizationId(currentUser.getId(), organizationId).orElse(null);
+            if (targetTenant == null) {
+                throw new AccessDeniedException("The current tenant could not be resolved");
+            }
+        }
+
+        if (targetTenant == null) {
+            return;
+        }
+
+        if (targetTenant.getMetadata() == null || targetTenant.getMetadata().isBlank()) {
+            return;
+        }
+
+        try {
+            Map<String, Object> metadata = objectMapper.readValue(
+                    targetTenant.getMetadata(),
+                    new TypeReference<Map<String, Object>>() {}
+            );
+            Object session = metadata.get("digilocker_session");
+            if (session instanceof Map<?, ?> sessionMap) {
+                Object sessionVerificationId = sessionMap.get("verification_id");
+                if (sessionVerificationId != null
+                        && !verificationId.equals(String.valueOf(sessionVerificationId))) {
+                    throw new AccessDeniedException("DigiLocker verification ID does not belong to this tenant");
+                }
+            }
+        } catch (AccessDeniedException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new AccessDeniedException("DigiLocker tenant session metadata is invalid");
+        }
+    }
+
+    private boolean isHttpsUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private String mergeMetadata(String existingMetadata, String key, Object value) {

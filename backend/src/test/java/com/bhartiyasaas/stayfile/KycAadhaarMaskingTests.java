@@ -202,4 +202,71 @@ class KycAadhaarMaskingTests {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Aadhaar card image or PDF file is required");
     }
+
+    @Test
+    @DisplayName("Should reject file exceeding 10 MB size limit")
+    void testMaskAadhaar_FileSizeExceeds10MB_ThrowsBadRequest() {
+        MockMultipartFile largeFile = new MockMultipartFile(
+                "file",
+                "large_aadhaar.pdf",
+                "application/pdf",
+                new byte[1]
+        ) {
+            @Override
+            public long getSize() {
+                return 10L * 1024 * 1024 + 1; // 10MB + 1 byte
+            }
+        };
+
+        assertThatThrownBy(() -> kycVerificationService.maskAadhaar(largeFile, null, adminUser))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("exceeds the 10 MB limit");
+    }
+
+    @Test
+    @DisplayName("Should successfully mask Aadhaar standalone without linking to a tenant")
+    void testMaskAadhaar_StandaloneWithoutTenant() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "aadhaar_card.png",
+                "image/png",
+                new byte[]{1, 2, 3, 4}
+        );
+
+        CashfreeAadhaarMaskingResponse cfResponse = CashfreeAadhaarMaskingResponse.builder()
+                .status("VALID")
+                .referenceId("987654")
+                .verificationId("test_standalone_id")
+                .imageLink("https://sandbox.cashfree.com/masked/doc.png")
+                .build();
+
+        when(cashfreeHttpClient.postMultipart(eq("/aadhaar-masking"), any(MultiValueMap.class), any(), eq(CashfreeAadhaarMaskingResponse.class), eq(orgId)))
+                .thenReturn(cfResponse);
+
+        AadhaarMaskingResponse response = kycVerificationService.maskAadhaar(file, null, adminUser);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isValid()).isTrue();
+        assertThat(response.getStatus()).isEqualTo("VALID");
+        assertThat(response.isLinkedToTenant()).isFalse();
+        assertThat(response.getTenantId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Should throw ResourceNotFoundException when tenant ID does not belong to organization")
+    void testMaskAadhaar_TenantNotFoundInOrg_ThrowsException() {
+        UUID unknownTenantId = UUID.randomUUID();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "aadhaar_card.png",
+                "image/png",
+                new byte[]{1, 2, 3, 4}
+        );
+
+        when(tenantRepository.findByIdAndOrganizationId(unknownTenantId, orgId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> kycVerificationService.maskAadhaar(file, unknownTenantId, adminUser))
+                .isInstanceOf(com.bhartiyasaas.stayfile.exception.ResourceNotFoundException.class)
+                .hasMessageContaining("Tenant not found with ID");
+    }
 }
