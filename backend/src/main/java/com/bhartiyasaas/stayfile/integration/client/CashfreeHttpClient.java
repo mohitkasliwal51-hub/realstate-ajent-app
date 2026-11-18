@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -86,6 +87,47 @@ public class CashfreeHttpClient {
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
             integrationLogService.log(organizationId, PROVIDER, fullUrl, requestJson, null, 502, latencyMs, ex.getMessage());
             log.error("Cashfree connection error calling '{}': {}", fullUrl, ex.getMessage());
+
+            throw new IntegrationException(PROVIDER, "Unable to communicate with Cashfree: " + ex.getMessage(), ex);
+        }
+    }
+
+    public <T> T postMultipart(String relativePath, MultiValueMap<String, Object> bodyParts, String auditPayloadSummary, Class<T> responseType, UUID organizationId) {
+        validateCredentials();
+        String fullUrl = buildUrl(relativePath);
+        long startTime = System.currentTimeMillis();
+
+        try {
+            log.debug("Calling Cashfree Multipart POST endpoint: {}", fullUrl);
+
+            String responseBody = restClient.post()
+                    .uri(fullUrl)
+                    .header("x-client-id", clientId)
+                    .header("x-client-secret", clientSecret)
+                    .header("x-api-version", apiVersion)
+                    .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(bodyParts)
+                    .retrieve()
+                    .body(String.class);
+
+            int latencyMs = (int) (System.currentTimeMillis() - startTime);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, responseBody, 200, latencyMs, null);
+
+            return fromJson(responseBody, responseType);
+        } catch (RestClientResponseException ex) {
+            int latencyMs = (int) (System.currentTimeMillis() - startTime);
+            String errorBody = ex.getResponseBodyAsString();
+            String userMsg = extractErrorMessage(errorBody, ex.getStatusText());
+
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, errorBody, ex.getStatusCode().value(), latencyMs, userMsg);
+            log.error("Cashfree Multipart POST '{}' failed [HTTP {}]: {}", fullUrl, ex.getStatusCode().value(), userMsg);
+
+            throw new IntegrationException(PROVIDER, ex.getStatusCode().value(), errorBody, userMsg);
+        } catch (Exception ex) {
+            int latencyMs = (int) (System.currentTimeMillis() - startTime);
+            integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, null, 502, latencyMs, ex.getMessage());
+            log.error("Cashfree Multipart connection error calling '{}': {}", fullUrl, ex.getMessage());
 
             throw new IntegrationException(PROVIDER, "Unable to communicate with Cashfree: " + ex.getMessage(), ex);
         }
