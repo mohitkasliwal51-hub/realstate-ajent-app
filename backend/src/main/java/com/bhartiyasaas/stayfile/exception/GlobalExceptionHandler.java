@@ -65,6 +65,16 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(IntegrationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIntegrationException(IntegrationException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode());
+        if (status == null || status.is5xxServerError()) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+        return ResponseEntity.status(status)
+                .body(ApiResponse.error(String.format("[%s Error]: %s", ex.getProvider(), ex.getUserMessage())));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
