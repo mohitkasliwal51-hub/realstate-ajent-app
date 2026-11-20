@@ -58,10 +58,10 @@ the source of truth. This model contains 21 tables and 25 PostgreSQL enum types.
 
 ### `organizations`
 
-Columns: `id`, `name`, `slug`, `organization_type`, `is_active`, `metadata`,
+Columns: `id`, `name`, `slug`, `organization_type`, `custom_domain`, `domain_status`, `is_active`, `metadata`,
 `created_at`, `updated_at`.
 
-`slug` is unique. `organization_type` defaults to `OWNER`.
+`slug` is unique. `organization_type` defaults to `OWNER`. `custom_domain` is unique (allows NULL) for custom domain white-labeling (e.g. `www.royalstays.com`). `domain_status` tracks DNS verification (`PENDING_DNS`, `ACTIVE`, `ERROR`).
 
 ### `profiles`
 
@@ -304,6 +304,7 @@ An after-insert/update/delete trigger on `receipts`:
 ## Indexes and Uniqueness
 
 - Globally unique profile email (`uk_profiles_email_global`) and organization-scoped unique email (`uk_profiles_organization_email`).
+- Unique custom domain lookup index (`idx_organizations_custom_domain`) on `organizations.custom_domain`.
 - Unique receipt, invoice, and payout numbers per organization (`uniq_receipt_number_per_org`, `uniq_invoice_number_per_org`, `uniq_payout_number_per_org`).
 - One active lease per unit (`uq_one_active_lease_per_unit`).
 - One `MONTHLY_RENT` invoice per lease and billing-period start (`idx_unique_monthly_rent_invoice`).
@@ -378,3 +379,30 @@ because they span tables):
   lines and `BROKERAGE_FEE` receipts are only allowed on managed properties.
 - Changing `organization_type` is validated against existing data (e.g. an org
   with managed properties cannot become `OWNER`).
+
+## Default Development Seed Accounts
+
+The initialization script (`database/init-scripts/01-init.sql`) includes pre-seeded accounts so local development and Docker spin-up are immediately testable without manual account registration.
+
+### 1. Direct Owner Account
+
+- **Login Email**: `owner@stayfile.in`
+- **Password**: `asdf1234`
+- **Role**: `ADMIN`
+- **Organization**: `Royal Stays Demo` (UUID: `00000000-0000-0000-0000-000000000001`)
+- **Organization Type**: `OWNER`
+- **Subdomain Slug**: `royal-stays`
+- **Custom Branded Domain**: `www.royalstays.com` (`domain_status = 'ACTIVE'`)
+- **Branding**: `Royal Stays Accommodations` / `Royal Stays`, primary color `#2563eb`
+
+### 2. Tenant Account
+
+- **Login Email**: `tenant@stayfile.in`
+- **Password**: `asdf1234`
+- **Role**: `TENANT`
+- **Linked Organization**: `Royal Stays Demo` (UUID: `00000000-0000-0000-0000-000000000001`)
+- **Tenant Entity**: `Ankit Verma` (UUID: `00000000-0000-0000-0000-000000000005`, linked to profile `00000000-0000-0000-0000-000000000004`)
+- **Phone**: `+919876543211`
+- **Permanent Address**: `Flat 302, Green Avenue, Pune, Maharashtra - 411057`
+- **KYC Status**: `PENDING` (no pre-uploaded Aadhaar/PAN, allowing instant testing of `/kyc/tenant` and `/app/tenant`)
+

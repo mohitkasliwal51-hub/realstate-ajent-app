@@ -229,6 +229,8 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     name TEXT NOT NULL,                             -- Agency or Owner Business Legal Name
     slug TEXT UNIQUE NOT NULL,                       -- URL-friendly slug e.g. "sunshine-properties"
     organization_type organization_type NOT NULL DEFAULT 'OWNER',
+    custom_domain TEXT UNIQUE,                      -- Custom branded domain e.g. "www.royalstays.com"
+    domain_status TEXT DEFAULT 'PENDING_DNS',       -- Verification status: 'PENDING_DNS', 'ACTIVE', 'ERROR'
     is_active BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}'::jsonb,              -- Custom org settings
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1010,6 +1012,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_user_id
     WHERE user_id IS NOT NULL;
 
 -- High-Performance Composite Multi-Tenant Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_organizations_custom_domain ON public.organizations(custom_domain);
 CREATE INDEX IF NOT EXISTS idx_leases_org_status ON public.leases(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_landlords_org ON public.landlords(managing_organization_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_properties_landlord ON public.properties(landlord_id);
@@ -1167,3 +1170,114 @@ CREATE POLICY "Org members can manage maintenance tickets" ON public.maintenance
 CREATE POLICY "Org members can manage integration logs" ON public.integration_logs
     FOR ALL USING (organization_id = public.current_organization_id())
     WITH CHECK (organization_id = public.current_organization_id());
+
+-- -----------------------------------------------------------------------------
+-- 10. DEFAULT SEED DATA FOR LOCAL DEVELOPMENT & TESTING
+-- -----------------------------------------------------------------------------
+-- Pre-configured test owner & tenant accounts so Docker spin-up is instantly testable:
+--   Owner:  owner@stayfile.in  / asdf1234  (Admin / Direct Owner portal)
+--   Tenant: tenant@stayfile.in / asdf1234  (Tenant portal & self-service)
+-- -----------------------------------------------------------------------------
+
+-- 1. Default Organization (Direct Owner: Royal Stays Demo)
+INSERT INTO public.organizations (
+    id,
+    name,
+    slug,
+    organization_type,
+    custom_domain,
+    domain_status,
+    is_active
+) VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    'Royal Stays Demo',
+    'royal-stays',
+    'OWNER',
+    'www.royalstays.com',
+    'ACTIVE',
+    TRUE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 2. Organization Branding Settings
+INSERT INTO public.branding_settings (
+    id,
+    organization_id,
+    legal_business_name,
+    trade_name,
+    contact_email,
+    contact_phone,
+    primary_color,
+    secondary_color
+) VALUES (
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000001',
+    'Royal Stays Accommodations',
+    'Royal Stays',
+    'owner@stayfile.in',
+    '+919876543210',
+    '#2563eb',
+    '#1e293b'
+) ON CONFLICT (organization_id) DO NOTHING;
+
+-- 3. Owner Profile (Admin)
+INSERT INTO public.profiles (
+    id,
+    organization_id,
+    email,
+    password_hash,
+    phone,
+    full_name,
+    role,
+    is_active
+) VALUES (
+    '00000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000001',
+    'owner@stayfile.in',
+    crypt('asdf1234', gen_salt('bf', 10)),
+    '+919876543210',
+    'Rajesh Sharma',
+    'ADMIN',
+    TRUE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 4. Tenant Profile (Tenant Role)
+INSERT INTO public.profiles (
+    id,
+    organization_id,
+    email,
+    password_hash,
+    phone,
+    full_name,
+    role,
+    is_active
+) VALUES (
+    '00000000-0000-0000-0000-000000000004',
+    '00000000-0000-0000-0000-000000000001',
+    'tenant@stayfile.in',
+    crypt('asdf1234', gen_salt('bf', 10)),
+    '+919876543211',
+    'Ankit Verma',
+    'TENANT',
+    TRUE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 5. Tenant Master Entity (Linked to Tenant Profile)
+INSERT INTO public.tenants (
+    id,
+    organization_id,
+    user_id,
+    full_name,
+    email,
+    phone,
+    permanent_address,
+    kyc_status
+) VALUES (
+    '00000000-0000-0000-0000-000000000005',
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000004',
+    'Ankit Verma',
+    'tenant@stayfile.in',
+    '+919876543211',
+    'Flat 302, Green Avenue, Pune, Maharashtra - 411057',
+    'PENDING'
+) ON CONFLICT (id) DO NOTHING;
