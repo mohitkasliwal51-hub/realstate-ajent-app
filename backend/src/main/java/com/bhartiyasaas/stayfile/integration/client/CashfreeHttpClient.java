@@ -32,6 +32,7 @@ public class CashfreeHttpClient {
     private final String clientSecret;
     private final String baseUrl;
     private final String apiVersion;
+    private final String signature;
 
     public CashfreeHttpClient(
             RestClient restClient,
@@ -40,7 +41,8 @@ public class CashfreeHttpClient {
             @Value("${stayfile.verification.cashfree.client-id:}") String clientId,
             @Value("${stayfile.verification.cashfree.client-secret:}") String clientSecret,
             @Value("${stayfile.verification.cashfree.base-url:https://sandbox.cashfree.com/verification}") String baseUrl,
-            @Value("${stayfile.verification.cashfree.api-version:2024-01-01}") String apiVersion) {
+            @Value("${stayfile.verification.cashfree.api-version:2024-01-01}") String apiVersion,
+            @Value("${stayfile.verification.cashfree.signature:}") String signature) {
         this.restClient = restClient;
         this.integrationLogService = integrationLogService;
         this.objectMapper = objectMapper;
@@ -48,6 +50,7 @@ public class CashfreeHttpClient {
         this.clientSecret = clientSecret != null ? clientSecret.trim() : "";
         this.baseUrl = baseUrl != null ? baseUrl.replaceAll("/+$", "") : "https://sandbox.cashfree.com/verification";
         this.apiVersion = apiVersion != null && !apiVersion.trim().isEmpty() ? apiVersion.trim() : "2024-01-01";
+        this.signature = signature != null ? signature.trim() : "";
     }
 
     public <T> T post(String relativePath, Object requestBody, Class<T> responseType, UUID organizationId) {
@@ -59,16 +62,15 @@ public class CashfreeHttpClient {
         try {
             log.debug("Calling Cashfree POST endpoint: {}", fullUrl);
 
-            String responseBody = restClient.post()
+            var request = restClient.post()
                     .uri(fullUrl)
                     .header("x-client-id", clientId)
                     .header("x-client-secret", clientSecret)
                     .header("x-api-version", apiVersion)
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestJson != null ? requestJson : "{}")
-                    .retrieve()
-                    .body(String.class);
+                    .contentType(MediaType.APPLICATION_JSON);
+            addSignature(request);
+            String responseBody = request.body(requestJson != null ? requestJson : "{}").retrieve().body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
             integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, 200, latencyMs, null);
@@ -100,16 +102,15 @@ public class CashfreeHttpClient {
         try {
             log.debug("Calling Cashfree Multipart POST endpoint: {}", fullUrl);
 
-            String responseBody = restClient.post()
+            var request = restClient.post()
                     .uri(fullUrl)
                     .header("x-client-id", clientId)
                     .header("x-client-secret", clientSecret)
                     .header("x-api-version", apiVersion)
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(bodyParts)
-                    .retrieve()
-                    .body(String.class);
+                    .contentType(MediaType.MULTIPART_FORM_DATA);
+            addSignature(request);
+            String responseBody = request.body(bodyParts).retrieve().body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
             integrationLogService.log(organizationId, PROVIDER, fullUrl, auditPayloadSummary, null, 200, latencyMs, null);
@@ -142,14 +143,14 @@ public class CashfreeHttpClient {
         try {
             log.debug("Calling Cashfree GET endpoint: {}", fullUrl);
 
-            String responseBody = restClient.get()
+            var request = restClient.get()
                     .uri(uri)
                     .header("x-client-id", clientId)
                     .header("x-client-secret", clientSecret)
                     .header("x-api-version", apiVersion)
-                    .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                    .retrieve()
-                    .body(String.class);
+                    .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            addSignature(request);
+            String responseBody = request.retrieve().body(String.class);
 
             int latencyMs = (int) (System.currentTimeMillis() - startTime);
             integrationLogService.log(organizationId, PROVIDER, fullUrl, null, null, 200, latencyMs, null);
@@ -176,6 +177,12 @@ public class CashfreeHttpClient {
     private void validateCredentials() {
         if (clientId.isEmpty() || clientSecret.isEmpty()) {
             throw new ProviderUnavailableException("Cashfree Secure ID credentials are not configured. Please supply CASHFREE_VERIFICATION_CLIENT_ID and CASHFREE_VERIFICATION_CLIENT_SECRET.");
+        }
+
+        private void addSignature(org.springframework.web.client.RestClient.RequestHeadersSpec<?> request) {
+            if (!signature.isEmpty()) {
+                request.header("x-cf-signature", signature);
+            }
         }
     }
 

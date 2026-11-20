@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Settings, Save, Building, ShieldCheck, Banknote, RefreshCw, Globe, ExternalLink, CheckCircle2, Clock } from 'lucide-react';
+import { Settings, Save, Building, ShieldCheck, Banknote, RefreshCw, Globe, ExternalLink, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { orgApi, FullBrandingSettings } from '@/lib/api/orgApi';
+import { kybApi } from '@/lib/api/kybApi';
 import { OrganizationType } from '@/lib/auth/authTypes';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +22,8 @@ export default function SettingsPage() {
   const [domainStatus, setDomainStatus] = useState('PENDING_DNS');
   const [orgSlug, setOrgSlug] = useState('');
   const [isSavingDomain, setIsSavingDomain] = useState(false);
+  const [isVerifyingGstin, setIsVerifyingGstin] = useState(false);
+  const [gstinVerifiedBadge, setGstinVerifiedBadge] = useState<string | null>(null);
   const [branding, setBranding] = useState<FullBrandingSettings>({
     legalBusinessName: '',
     tradeName: '',
@@ -86,6 +89,33 @@ export default function SettingsPage() {
       toast.error(getErrorMessage(err, 'Failed to update custom domain.'));
     } finally {
       setIsSavingDomain(false);
+    }
+  };
+
+  const handleVerifyGstin = async () => {
+    if (!branding.ownerGstin || !validateGstin(branding.ownerGstin)) {
+      toast.warning('Please enter a valid 15-character GSTIN (e.g. 29ABCDE1234F1Z5).');
+      return;
+    }
+    setIsVerifyingGstin(true);
+    try {
+      const data = await kybApi.verifyGstin(branding.ownerGstin);
+      if (data.valid) {
+        setGstinVerifiedBadge(data.taxpayerType || data.constitution || 'Active');
+        setBranding((prev) => ({
+          ...prev,
+          legalBusinessName: data.legalName || prev.legalBusinessName,
+          tradeName: data.tradeName || prev.tradeName,
+          registeredOfficeAddress: data.address || prev.registeredOfficeAddress,
+        }));
+        toast.success(`GSTIN Verified: ${data.legalName || data.tradeName}! Business details updated.`);
+      } else {
+        toast.error(`GSTIN Verification Failed: ${data.message || 'Invalid GSTIN'}`);
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to verify GSTIN with Cashfree.'));
+    } finally {
+      setIsVerifyingGstin(false);
     }
   };
 
@@ -323,12 +353,38 @@ export default function SettingsPage() {
               value={branding.ownerPan || ''}
               onChange={(e) => setBranding({ ...branding, ownerPan: e.target.value })}
             />
-            <Input
-              label="GSTIN"
-              placeholder="29ABCDE1234F1Z5"
-              value={branding.ownerGstin || ''}
-              onChange={(e) => setBranding({ ...branding, ownerGstin: e.target.value })}
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">GSTIN</label>
+                {gstinVerifiedBadge && (
+                  <Badge variant="success" dot className="text-[10px]">
+                    Verified • {gstinVerifiedBadge}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="29ABCDE1234F1Z5"
+                  value={branding.ownerGstin || ''}
+                  onChange={(e) => {
+                    setBranding({ ...branding, ownerGstin: e.target.value.toUpperCase() });
+                    setGstinVerifiedBadge(null);
+                  }}
+                  maxLength={15}
+                  className="font-mono uppercase font-bold"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleVerifyGstin}
+                  isLoading={isVerifyingGstin}
+                  className="text-xs shrink-0"
+                  title="Verify GSTIN with Government Registry via Cashfree"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-600" /> Verify
+                </Button>
+              </div>
+            </div>
             <Input
               label="RERA Registration #"
               placeholder="PRM/KA/RERA/..."
