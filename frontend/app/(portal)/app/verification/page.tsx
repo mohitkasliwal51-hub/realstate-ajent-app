@@ -29,6 +29,9 @@ import { useToast } from '@/lib/toast/ToastContext';
 import { getErrorMessage } from '@/lib/utils';
 import { validatePan, validateGstin, validateIfsc } from '@/lib/validation';
 
+import { BankVerificationCard } from '@/components/verification/BankVerificationCard';
+import { BankVerificationResult } from '@/lib/api/bankVerificationApi';
+
 export default function OwnerVerificationPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -65,6 +68,7 @@ export default function OwnerVerificationPage() {
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
   const [bankName, setBankName] = useState('');
+  const [isBankVerified, setIsBankVerified] = useState(false);
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -491,39 +495,30 @@ export default function OwnerVerificationPage() {
       </div>
 
       {/* STEP 4: Rent Settlement Bank Account */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-emerald-600" /> 4. Rent Settlement Bank Account
+      <div className="space-y-3">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 px-1">
+          <CreditCard className="w-4 h-4 text-emerald-600" /> 4. Rent Settlement Payout Account
         </span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input
-            label="Bank Account Number *"
-            placeholder="e.g. 026291800001191"
-            value={bankAccount}
-            onChange={(e) => setBankAccount(e.target.value)}
-            required
-          />
-          <Input
-            label="IFSC Code *"
-            placeholder="e.g. HDFC0001234"
-            value={ifsc}
-            onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-            maxLength={11}
-            className="font-mono uppercase font-bold"
-            required
-          />
-        </div>
-
-        <Input
-          label="Bank Name (Optional)"
-          placeholder="e.g. HDFC Bank, ICICI Bank, State Bank of India"
-          value={bankName}
-          onChange={(e) => setBankName(e.target.value)}
+        <BankVerificationCard
+          initialAccountHolderName={gstinDetails?.legalName || panDetails?.registeredName || name}
+          onVerified={(result: BankVerificationResult) => {
+            if (result.accountNumber) setBankAccount(result.accountNumber);
+            if (result.ifsc) setIfsc(result.ifsc);
+            if (result.bankName) setBankName(result.bankName);
+            setIsBankVerified(true);
+          }}
+          currentData={{
+            accountNumber: bankAccount,
+            ifsc: ifsc,
+            bankName: bankName,
+            accountHolderName: gstinDetails?.legalName || panDetails?.registeredName || name,
+            isVerified: isBankVerified,
+          }}
         />
 
-        <p className="text-[11px] text-slate-500">
-          Monthly tenant rent payments and security deposit credits will settle directly into this account.
+        <p className="text-[11px] text-slate-500 px-1">
+          Monthly tenant rent payments and security deposit credits will settle directly into this verified account.
         </p>
       </div>
 

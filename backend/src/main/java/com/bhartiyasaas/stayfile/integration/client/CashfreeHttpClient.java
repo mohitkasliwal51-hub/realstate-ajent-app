@@ -178,11 +178,11 @@ public class CashfreeHttpClient {
         if (clientId.isEmpty() || clientSecret.isEmpty()) {
             throw new ProviderUnavailableException("Cashfree Secure ID credentials are not configured. Please supply CASHFREE_VERIFICATION_CLIENT_ID and CASHFREE_VERIFICATION_CLIENT_SECRET.");
         }
+    }
 
-        private void addSignature(org.springframework.web.client.RestClient.RequestHeadersSpec<?> request) {
-            if (!signature.isEmpty()) {
-                request.header("x-cf-signature", signature);
-            }
+    private void addSignature(org.springframework.web.client.RestClient.RequestHeadersSpec<?> request) {
+        if (!signature.isEmpty()) {
+            request.header("x-cf-signature", signature);
         }
     }
 

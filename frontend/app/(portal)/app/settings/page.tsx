@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { getErrorMessage } from '@/lib/utils';
 import { validatePan, validateGstin, validateIfsc } from '@/lib/validation';
 import { useToast } from '@/lib/toast/ToastContext';
+import { BankVerificationCard } from '@/components/verification/BankVerificationCard';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -398,48 +399,44 @@ export default function SettingsPage() {
 
         {/* Bank & Payment Details for Direct Owner Collections */}
         <div className="space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-blue-600">
-            Owner Collection Bank Account & UPI
-          </h2>
-          <p className="text-xs text-slate-500">
-            Used on invoices and payment receipts for self-owned properties.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Account Holder Name"
-              placeholder="e.g. Acme Residencies Private Limited"
-              value={branding.accountHolderName || ''}
-              onChange={(e) => setBranding({ ...branding, accountHolderName: e.target.value })}
-            />
-            <Input
-              label="Bank Account Number"
-              placeholder="1234567890"
-              value={branding.bankAccountNumber || ''}
-              onChange={(e) => setBranding({ ...branding, bankAccountNumber: e.target.value })}
-            />
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-blue-600">
+                Owner Collection Bank Account & UPI
+              </h2>
+              <p className="text-xs text-slate-500">
+                Used on invoices and payout settlements for self-owned properties.
+              </p>
+            </div>
+            {branding.bankAccountNumber && (
+              <Badge variant="success" dot>
+                BANK VERIFIED
+              </Badge>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input
-              label="Bank Name"
-              placeholder="HDFC Bank"
-              value={branding.bankName || ''}
-              onChange={(e) => setBranding({ ...branding, bankName: e.target.value })}
-            />
-            <Input
-              label="IFSC Code"
-              placeholder="HDFC0001234"
-              value={branding.bankIfscCode || ''}
-              onChange={(e) => setBranding({ ...branding, bankIfscCode: e.target.value })}
-            />
-            <Input
-              label="Owner UPI ID"
-              placeholder="acme@hdfcbank"
-              value={branding.ownerUpiId || ''}
-              onChange={(e) => setBranding({ ...branding, ownerUpiId: e.target.value })}
-            />
-          </div>
+          <BankVerificationCard
+            initialAccountHolderName={branding.accountHolderName || branding.legalBusinessName}
+            onVerified={(result) => {
+              setBranding((prev) => ({
+                ...prev,
+                bankAccountNumber: result.accountNumber || prev.bankAccountNumber,
+                bankIfscCode: result.ifsc || prev.bankIfscCode,
+                bankName: result.bankName || prev.bankName,
+                accountHolderName: result.accountHolderName || prev.accountHolderName,
+                ownerUpiId: result.upiId || prev.ownerUpiId,
+              }));
+              toast.success('Bank account verified and updated in settings!');
+            }}
+            currentData={{
+              accountNumber: branding.bankAccountNumber,
+              ifsc: branding.bankIfscCode,
+              bankName: branding.bankName,
+              accountHolderName: branding.accountHolderName,
+              upiId: branding.ownerUpiId,
+              isVerified: Boolean(branding.bankAccountNumber && branding.bankIfscCode),
+            }}
+          />
         </div>
 
         <hr className="border-slate-100" />
