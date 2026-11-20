@@ -31,6 +31,8 @@ public class UserProfileResponse {
     private String organizationSlug;
 
     private com.bhartiyasaas.stayfile.entity.enums.OrganizationType organizationType;
+    private String customDomain;
+    private String domainStatus;
 
     private UUID tenantId;
 

@@ -56,8 +56,17 @@ public class OrganizationController {
         private String name;
         private String slug;
         private OrganizationType type;
+        private String customDomain;
+        private String domainStatus;
         private Boolean isActive;
         private ShowcaseBrandingResponse branding;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpdateDomainRequest {
+        private String customDomain;
     }
 
     @Data
@@ -91,6 +100,8 @@ public class OrganizationController {
                 .name(org.getName())
                 .slug(org.getSlug())
                 .type(org.getOrganizationType() != null ? org.getOrganizationType() : OrganizationType.OWNER)
+                .customDomain(org.getCustomDomain())
+                .domainStatus(org.getDomainStatus())
                 .isActive(org.getIsActive())
                 .branding(toPublicBranding(branding))
                 .build();
@@ -122,11 +133,55 @@ public class OrganizationController {
                 .name(saved.getName())
                 .slug(saved.getSlug())
                 .type(saved.getOrganizationType())
+                .customDomain(saved.getCustomDomain())
+                .domainStatus(saved.getDomainStatus())
                 .isActive(saved.getIsActive())
                 .branding(toPublicBranding(branding))
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(response, "Organization type updated successfully"));
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @PutMapping("/organizations/{id}/domain")
+    public ResponseEntity<ApiResponse<OrganizationDetailsResponse>> updateCustomDomain(
+            @PathVariable UUID id,
+            @RequestBody UpdateDomainRequest request) {
+        tenantAccessService.validateUserOrganization(id);
+        Organization org = organizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+        String domain = request.getCustomDomain() != null ? request.getCustomDomain().trim().toLowerCase() : null;
+        if (domain != null && domain.isEmpty()) {
+            domain = null;
+        }
+
+        if (domain != null && !domain.equals(org.getCustomDomain())) {
+            if (organizationRepository.existsByCustomDomain(domain)) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Domain is already claimed by another organization"));
+            }
+            org.setCustomDomain(domain);
+            org.setDomainStatus("ACTIVE");
+        } else if (domain == null) {
+            org.setCustomDomain(null);
+            org.setDomainStatus("PENDING_DNS");
+        }
+
+        Organization saved = organizationRepository.save(org);
+        BrandingSettings branding = brandingSettingsRepository.findByOrganizationId(id).orElse(null);
+
+        OrganizationDetailsResponse response = OrganizationDetailsResponse.builder()
+                .id(saved.getId())
+                .name(saved.getName())
+                .slug(saved.getSlug())
+                .type(saved.getOrganizationType())
+                .customDomain(saved.getCustomDomain())
+                .domainStatus(saved.getDomainStatus())
+                .isActive(saved.getIsActive())
+                .branding(toPublicBranding(branding))
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Domain settings updated successfully"));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
@@ -179,7 +234,8 @@ public class OrganizationController {
     @GetMapping("/showcase/{organizationSlug}")
     public ResponseEntity<ApiResponse<ShowcaseResponse>> getPublicShowcase(@PathVariable String organizationSlug) {
         Organization org = organizationRepository.findBySlug(organizationSlug)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with slug: " + organizationSlug));
+                .or(() -> organizationRepository.findByCustomDomain(organizationSlug))
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with slug or domain: " + organizationSlug));
 
         BrandingSettings branding = brandingSettingsRepository.findByOrganizationId(org.getId()).orElse(null);
         List<PropertyResponse> properties = propertyService.getPublicPropertiesByOrganization(org.getId());

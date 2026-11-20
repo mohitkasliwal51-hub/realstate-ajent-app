@@ -11,5 +11,7 @@ import java.util.UUID;
 @Repository
 public interface OrganizationRepository extends JpaRepository<Organization, UUID> {
     Optional<Organization> findBySlug(String slug);
+    Optional<Organization> findByCustomDomain(String customDomain);
     boolean existsBySlug(String slug);
+    boolean existsByCustomDomain(String customDomain);
 }

@@ -134,6 +134,8 @@ public class AuthServiceImpl implements AuthService {
                 .organizationName(org != null ? org.getName() : null)
                 .organizationSlug(org != null ? org.getSlug() : null)
                 .organizationType(org != null ? org.getOrganizationType() : com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER)
+                .customDomain(org != null ? org.getCustomDomain() : null)
+                .domainStatus(org != null ? org.getDomainStatus() : null)
                 .tenantId(tenantId)
                 .isActive(profile.getIsActive())
                 .build();
@@ -163,6 +165,8 @@ public class AuthServiceImpl implements AuthService {
                 .organizationName(organization == null ? null : organization.getName())
                 .organizationSlug(organization == null ? null : organization.getSlug())
                 .organizationType(organization == null ? com.bhartiyasaas.stayfile.entity.enums.OrganizationType.OWNER : organization.getOrganizationType())
+                .customDomain(organization == null ? null : organization.getCustomDomain())
+                .domainStatus(organization == null ? null : organization.getDomainStatus())
                 .tenantId(tenantId)
                 .phone(profile.getPhone())
                 .build();

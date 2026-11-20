@@ -36,6 +36,13 @@ public class Organization {
     @Builder.Default
     private OrganizationType organizationType = OrganizationType.OWNER;
 
+    @Column(name = "custom_domain", unique = true)
+    private String customDomain;
+
+    @Builder.Default
+    @Column(name = "domain_status")
+    private String domainStatus = "PENDING_DNS";
+
     @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
