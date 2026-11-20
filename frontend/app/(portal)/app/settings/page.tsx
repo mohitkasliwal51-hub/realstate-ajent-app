@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Settings, Save, Building, ShieldCheck, Banknote, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { Settings, Save, Building, ShieldCheck, Banknote, RefreshCw, Globe, ExternalLink, CheckCircle2, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { orgApi, FullBrandingSettings } from '@/lib/api/orgApi';
 import { OrganizationType } from '@/lib/auth/authTypes';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 import { getErrorMessage } from '@/lib/utils';
 import { validatePan, validateGstin, validateIfsc } from '@/lib/validation';
 import { useToast } from '@/lib/toast/ToastContext';
@@ -15,6 +17,10 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [orgType, setOrgType] = useState<OrganizationType>('HYBRID');
+  const [customDomain, setCustomDomain] = useState('');
+  const [domainStatus, setDomainStatus] = useState('PENDING_DNS');
+  const [orgSlug, setOrgSlug] = useState('');
+  const [isSavingDomain, setIsSavingDomain] = useState(false);
   const [branding, setBranding] = useState<FullBrandingSettings>({
     legalBusinessName: '',
     tradeName: '',
@@ -48,6 +54,9 @@ export default function SettingsPage() {
           orgApi.getFullBranding(user.organizationId).catch(() => null),
         ]);
         if (orgDetails.type) setOrgType(orgDetails.type);
+        if (orgDetails.slug) setOrgSlug(orgDetails.slug);
+        if (orgDetails.customDomain) setCustomDomain(orgDetails.customDomain);
+        if (orgDetails.domainStatus) setDomainStatus(orgDetails.domainStatus);
         if (fullBranding) {
           setBranding(fullBranding);
         } else if (orgDetails.branding) {
@@ -63,6 +72,22 @@ export default function SettingsPage() {
     };
     fetchOrg();
   }, [user?.organizationId]);
+
+  const handleSaveDomain = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.organizationId) return;
+    setIsSavingDomain(true);
+    try {
+      const res = await orgApi.updateCustomDomain(user.organizationId, customDomain.trim() || null);
+      setCustomDomain(res.customDomain || '');
+      setDomainStatus(res.domainStatus || 'PENDING_DNS');
+      toast.success('Domain settings updated successfully!');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update custom domain.'));
+    } finally {
+      setIsSavingDomain(false);
+    }
+  };
 
   const handleSaveBranding = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +218,82 @@ export default function SettingsPage() {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Website & Custom Domain Settings */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Dedicated Website & Custom Domain</h2>
+              <p className="text-xs text-slate-500">Every owner and agency gets their own branded website showcasing their properties.</p>
+            </div>
+          </div>
+          {customDomain && (
+            <Badge variant={domainStatus === 'ACTIVE' ? 'success' : 'warning'}>
+              {domainStatus === 'ACTIVE' ? (
+                <><CheckCircle2 className="w-3 h-3 mr-1 inline" /> Domain Active</>
+              ) : (
+                <><Clock className="w-3 h-3 mr-1 inline" /> DNS Pending</>
+              )}
+            </Badge>
+          )}
+        </div>
+
+        {/* Free Subdomain Preview */}
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Your Included StayFile Website URL</span>
+            <span className="text-sm font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
+              https://{orgSlug || 'agency'}.stayfile.in
+            </span>
+          </div>
+          {orgSlug && (
+            <Link
+              href={`/p/${orgSlug}`}
+              target="_blank"
+              className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-2xs hover:bg-slate-50 transition-colors"
+            >
+              View Public Website <ExternalLink className="w-3 h-3 ml-1" />
+            </Link>
+          )}
+        </div>
+
+        {/* Custom Domain Form */}
+        <form onSubmit={handleSaveDomain} className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="md:col-span-2">
+              <Input
+                label="Custom Branded Domain (Optional)"
+                placeholder="e.g. www.royalstays.com or stays.mybrand.in"
+                value={customDomain}
+                onChange={(e) => setCustomDomain(e.target.value)}
+                helperText="Connect your own root domain or subdomain to replace the default stayfile.in URL."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" isLoading={isSavingDomain} className="w-full">
+                <Save className="w-4 h-4 mr-2" /> Save Domain
+              </Button>
+            </div>
+          </div>
+
+          {/* DNS Configuration Helper */}
+          <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 space-y-1.5">
+            <p className="font-semibold text-blue-950">DNS Setup Instructions:</p>
+            <p className="text-blue-800">
+              Add a <strong>CNAME</strong> record at your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.):
+            </p>
+            <div className="bg-white/80 p-2 rounded-lg font-mono text-[11px] text-slate-800 border border-blue-200/60 flex flex-wrap gap-x-6 gap-y-1">
+              <span><strong>Type:</strong> CNAME</span>
+              <span><strong>Host:</strong> {customDomain ? customDomain.split('.')[0] : 'www'}</span>
+              <span><strong>Points to:</strong> cname.stayfile.in</span>
+            </div>
+          </div>
+        </form>
       </div>
 
       <form onSubmit={handleSaveBranding} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs space-y-6">

@@ -12,6 +12,7 @@ import {
   Calendar,
   CreditCard,
   Building,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useToast } from '@/lib/toast/ToastContext';
@@ -21,6 +22,7 @@ import { receiptApi, Receipt } from '@/lib/api/receiptApi';
 import { invoiceApi, Invoice } from '@/lib/api/invoiceApi';
 import { ticketApi, TicketCreatePayload } from '@/lib/api/ticketApi';
 import { UtilitySplitAuditCard } from '@/components/invoice/UtilitySplitAuditCard';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -29,6 +31,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 
 export default function TenantSelfPortalPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Tenant | null>(null);
@@ -183,6 +186,15 @@ export default function TenantSelfPortalPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {profile?.kycStatus !== 'VERIFIED' && (
+              <Button
+                variant="outline"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold border-0 shadow-sm"
+                onClick={() => router.push('/kyc/tenant')}
+              >
+                <ShieldCheck className="w-4 h-4 mr-1.5 text-slate-950" /> Complete KYC & E-Sign ➔
+              </Button>
+            )}
             {lease && (
               <Button variant="primary" onClick={handleOpenTicketModal}>
                 <Wrench className="w-4 h-4 mr-1.5" /> Maintenance Request
@@ -191,6 +203,30 @@ export default function TenantSelfPortalPage() {
           </div>
         </div>
       </div>
+
+      {/* Mandatory KYC Warning Banner if Pending */}
+      {profile?.kycStatus !== 'VERIFIED' && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-amber-950">Mandatory Resident KYC & Police Verification Pending</h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Complete your identity authentication (DigiLocker Aadhaar / PAN) and digital lease agreement e-sign to authorize room key release.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="font-bold bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-sm"
+            onClick={() => router.push('/kyc/tenant')}
+          >
+            Complete KYC & Sign Lease ➔
+          </Button>
+        </div>
+      )}
 
       {/* Balance & Tenancy Quick Highlights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

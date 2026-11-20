@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Building2, Plus, MapPin, ArrowRight, Layers } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { propertyApi, Property, PropertyType } from '@/lib/api/propertyApi';
@@ -9,12 +10,7 @@ import { landlordApi, Landlord } from '@/lib/api/landlordApi';
 import { isBrokerMode, isLandlordRequired } from '@/lib/orgMode';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-
-import { FileUpload } from '@/components/ui/FileUpload';
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
-import { validatePincode } from '@/lib/validation';
 import { useToast } from '@/lib/toast/ToastContext';
 
 export default function PropertiesPage() {
@@ -23,26 +19,13 @@ export default function PropertiesPage() {
   const brokerMode = isBrokerMode(user);
   const landlordRequired = isLandlordRequired(user);
 
+  const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOwnerVerified, setIsOwnerVerified] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('ALL');
-
-  const [formData, setFormData] = useState({
-    landlordId: '',
-    name: '',
-    type: 'PG' as PropertyType,
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    landmark: '',
-    description: '',
-    images: [] as string[],
-  });
 
   const loadProperties = async () => {
     if (!user?.organizationId) return;
@@ -65,44 +48,12 @@ export default function PropertiesPage() {
     loadProperties();
   }, [user?.organizationId]);
 
-  const handleCreateProperty = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.organizationId) return;
-    if (landlordRequired && !formData.landlordId) {
-      toast.warning('BROKERAGE mode requires selecting a property landlord.');
+  const handleAddPropertyClick = () => {
+    if (!isOwnerVerified) {
+      router.push('/app/verification');
       return;
     }
-    if (formData.pincode && !validatePincode(formData.pincode)) {
-      toast.error('Invalid 6-digit Indian PIN Code format.');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await propertyApi.createProperty({
-        ...formData,
-        landlordId: formData.landlordId || undefined,
-        images: formData.images.length > 0 ? formData.images : undefined,
-      });
-      toast.success('Property created successfully!');
-      setIsModalOpen(false);
-      setFormData({
-        landlordId: '',
-        name: '',
-        type: 'PG',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        landmark: '',
-        description: '',
-        images: [],
-      });
-      await loadProperties();
-    } catch (err) {
-      toast.error('Failed to create property. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    router.push('/app/properties/new');
   };
 
   const getBadgeVariant = (type: PropertyType) => {
@@ -143,7 +94,7 @@ export default function PropertiesPage() {
             Manage your real estate portfolio, PG accommodations, commercial spaces, and hostel buildings.
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={handleAddPropertyClick}>
           <Plus className="w-4 h-4 mr-2" /> Add Property
         </Button>
       </div>
@@ -175,7 +126,7 @@ export default function PropertiesPage() {
             </p>
           </div>
           {properties.length === 0 && (
-            <Button onClick={() => setIsModalOpen(true)}>
+            <Button onClick={handleAddPropertyClick}>
               <Plus className="w-4 h-4 mr-2" /> Add Property
             </Button>
           )}
@@ -219,144 +170,6 @@ export default function PropertiesPage() {
           ))}
         </div>
       )}
-
-      {/* Add Property Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New Property"
-        description="Enter property location and type details"
-      >
-        <form onSubmit={handleCreateProperty} className="space-y-4">
-          {brokerMode && (
-            <div className="w-full flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Property Owner / Landlord {landlordRequired ? '*' : '(Optional for Self-Owned)'}
-              </label>
-              <select
-                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.landlordId}
-                onChange={(e) => setFormData({ ...formData, landlordId: e.target.value })}
-                required={landlordRequired}
-              >
-                <option value="">{landlordRequired ? 'Select landlord...' : 'Self-Owned (Direct Org Property)'}</option>
-                {landlords.map((l) => (
-                  <option key={l.id} value={l.id}>{l.legalName} ({l.phone})</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <Input
-            label="Property Name"
-            placeholder="e.g. Green Park Residency"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-
-          <div className="w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Property Type
-            </label>
-            <select
-              className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as PropertyType })}
-            >
-              <option value="PG">PG (Paying Guest)</option>
-              <option value="HOSTEL">Hostel</option>
-              <option value="FLAT">Flat / Apartment</option>
-              <option value="COMMERCIAL">Commercial Office / Space</option>
-            </select>
-          </div>
-
-          <Input
-            label="Address"
-            placeholder="Street address or block details"
-            value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="City"
-              placeholder="e.g. Bengaluru"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              required
-            />
-            <Input
-              label="State"
-              placeholder="e.g. Karnataka"
-              value={formData.state}
-              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Pincode"
-              placeholder="560001"
-              value={formData.pincode}
-              onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-              required
-            />
-            <Input
-              label="Landmark"
-              placeholder="Near Metro Station"
-              value={formData.landmark}
-              onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-            />
-          </div>
-
-          <div className="w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Description (Optional)
-            </label>
-            <textarea
-              className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
-              rows={2}
-              placeholder="Brief details about the property..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <FileUpload
-            category="PROPERTY_IMAGE"
-            label="Property Gallery Photo"
-            onChange={(url) => url && setFormData((prev) => ({ ...prev, images: [...prev.images, url] }))}
-          />
-          {formData.images.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {formData.images.map((imgUrl, idx) => (
-                <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-slate-200">
-                  <img src={imgUrl} alt="Property" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
-                    className="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              Create Property
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

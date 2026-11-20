@@ -23,6 +23,7 @@ export default function PublicShowcasePage({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -54,6 +55,11 @@ export default function PublicShowcasePage({
     setIsModalOpen(true);
     setSuccessMessage(false);
     setErrorMessage(null);
+  };
+
+  const handleOpenBooking = (property: Property) => {
+    setSelectedProperty(property);
+    setIsBookingModalOpen(true);
   };
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
@@ -176,11 +182,18 @@ export default function PublicShowcasePage({
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-600">Verified Listing</span>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleOpenInquiry(property)}>
-                    Inquire Now
+                    Inquire
                   </Button>
+                  <Link href={`/book/${property.id}`}>
+                    <Button
+                      size="sm"
+                      className="font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                    >
+                      Book Bed / Flat ➔
+                    </Button>
+                  </Link>
                 </div>
               </div>
             ))}

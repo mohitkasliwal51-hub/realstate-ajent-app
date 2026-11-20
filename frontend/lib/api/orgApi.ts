@@ -44,6 +44,8 @@ export interface OrganizationDetails {
   slug: string;
   isActive: boolean;
   type?: OrganizationType;
+  customDomain?: string;
+  domainStatus?: string;
   branding?: BrandingResponse;
 }
 
@@ -62,6 +64,11 @@ export const orgApi = {
 
   updateOrgType: async (organizationId: string, type: OrganizationType): Promise<OrganizationDetails> => {
     const response = await apiClient.patch(`/api/v1/organizations/${organizationId}/type`, { type });
+    return response.data.data;
+  },
+
+  updateCustomDomain: async (organizationId: string, customDomain: string | null): Promise<OrganizationDetails> => {
+    const response = await apiClient.put(`/api/v1/organizations/${organizationId}/domain`, { customDomain });
     return response.data.data;
   },
 
