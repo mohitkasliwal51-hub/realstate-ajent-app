@@ -6,8 +6,6 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth/AuthContext';
 
-import { ToastProvider } from '@/lib/toast/ToastContext';
-
 export default function PortalLayout({
   children,
 }: {
@@ -58,19 +56,17 @@ export default function PortalLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <ToastProvider>
-      <div className="min-h-screen flex bg-slate-50">
-        <Sidebar
-          isOpen={isMobileSidebarOpen}
-          onClose={() => setIsMobileSidebarOpen(false)}
-        />
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header onMenuClick={() => setIsMobileSidebarOpen(true)} />
-          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
-            {children}
-          </main>
-        </div>
+    <div className="min-h-screen flex bg-slate-50">
+      <Sidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header onMenuClick={() => setIsMobileSidebarOpen(true)} />
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+          {children}
+        </main>
       </div>
-    </ToastProvider>
+    </div>
   );
 }

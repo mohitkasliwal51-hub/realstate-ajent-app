@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { kycApi } from '@/lib/api/kycApi';
 import { tenantApi, Tenant } from '@/lib/api/tenantApi';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { useToast } from '@/lib/toast/ToastContext';
 
 const INDIAN_STATES = [
@@ -41,14 +42,15 @@ const INDIAN_STATES = [
 function TenantKycContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const propertyId = searchParams.get('propertyId');
   const unitId = searchParams.get('unitId');
   const tokenPaidParam = searchParams.get('tokenPaid');
-  const initialName = searchParams.get('fullName') || '';
-  const initialPhone = searchParams.get('phone') || '';
-  const initialEmail = searchParams.get('email') || '';
+  const initialName = searchParams.get('fullName') || user?.fullName || '';
+  const initialPhone = searchParams.get('phone') || user?.phone || '';
+  const initialEmail = searchParams.get('email') || user?.email || '';
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [kycMethod, setKycMethod] = useState<'digilocker' | 'masking'>('digilocker');
@@ -97,6 +99,39 @@ function TenantKycContent() {
   const [digitalSignatureName, setDigitalSignatureName] = useState(initialName);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+
+  useEffect(() => {
+    // If tenant is logged in, prefill profile and address details
+    tenantApi.getMyProfile()
+      .then((p) => {
+        if (p) {
+          if (p.fullName) {
+            setPoliceData((prev) => ({ ...prev, fullName: p.fullName }));
+            setDigitalSignatureName(p.fullName);
+          }
+          if (p.permanentAddress) {
+            setPoliceData((prev) => ({ ...prev, permanentAddress: p.permanentAddress || '' }));
+          }
+          if (p.emergencyContactName) {
+            setEmergencyData((prev) => ({
+              ...prev,
+              contactName: p.emergencyContactName || '',
+              contactPhone: p.emergencyContactPhone || '',
+              contactRelation: p.emergencyContactRelation || 'Parent',
+            }));
+          }
+          if (p.kycStatus === 'VERIFIED') {
+            setIsPanVerified(true);
+          }
+        }
+      })
+      .catch(() => {
+        if (user?.fullName) {
+          setPoliceData((prev) => ({ ...prev, fullName: user.fullName }));
+          setDigitalSignatureName(user.fullName);
+        }
+      });
+  }, [user]);
 
   const handleVerifyPan = async () => {
     if (!panNumber || panNumber.trim().length !== 10) {
