@@ -46,9 +46,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-slate-100">
-        <div className="flex flex-col items-center text-center mb-8">
+    <main className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+      <article className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-slate-100">
+        <header className="flex flex-col items-center text-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold text-2xl mb-3 shadow-lg shadow-blue-500/30">
             S
           </div>
@@ -56,15 +56,16 @@ export default function LoginPage() {
           <p className="text-xs text-slate-500 mt-1">
             Sign in to access your StayFile Property OS workspace
           </p>
-        </div>
+        </header>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
+          <div role="alert" aria-live="polite" className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-labelledby="login-title">
+          <h2 id="login-title" className="sr-only">Sign in to StayFile</h2>
           <Input
             label="Email Address"
             type="email"
@@ -88,9 +89,9 @@ export default function LoginPage() {
               <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
               Remember me
             </label>
-            <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">
+            <Link href="/login" aria-label="Reset your password" className="font-semibold text-blue-600 hover:text-blue-700">
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           <Button type="submit" className="w-full mt-2" isLoading={isLoading}>
@@ -98,13 +99,13 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-8 text-center text-xs text-slate-500">
+        <footer className="mt-8 text-center text-xs text-slate-500">
           Don't have an account?{' '}
           <Link href="/register" className="font-bold text-blue-600 hover:text-blue-700">
             Register Organization
           </Link>
-        </div>
-      </div>
-    </div>
+        </footer>
+      </article>
+    </main>
   );
 }

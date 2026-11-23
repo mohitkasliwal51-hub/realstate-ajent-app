@@ -185,7 +185,7 @@ export default function NewPropertyPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 text-xs font-bold">
+      <div role="tablist" aria-label="Property configuration steps" className="flex border-b border-slate-200 gap-2 text-xs font-bold">
         {[
           { id: 'basic', label: '1. Basic & Location' },
           { id: 'amenities', label: '2. Amenities & Perks' },
@@ -194,7 +194,12 @@ export default function NewPropertyPage() {
         ].map((tab) => (
           <button
             key={tab.id}
+            id={`property-${tab.id}-tab`}
             type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-current={activeTab === tab.id ? 'step' : undefined}
+            aria-controls={`property-${tab.id}-panel`}
             onClick={() => setActiveTab(tab.id as any)}
             className={`py-3 px-4 border-b-2 transition-all whitespace-nowrap ${
               activeTab === tab.id
@@ -207,10 +212,15 @@ export default function NewPropertyPage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" aria-label="New property details">
         {/* TAB 1: BASIC & LOCATION */}
         {activeTab === 'basic' && (
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div
+            id="property-basic-panel"
+            role="tabpanel"
+            aria-labelledby="property-basic-tab"
+            className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <Input
@@ -223,10 +233,12 @@ export default function NewPropertyPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                <label htmlFor="property-category" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Property Category
                 </label>
                 <select
+                  id="property-category"
+                  name="propertyType"
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as PropertyType })}
                   className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -241,10 +253,12 @@ export default function NewPropertyPage() {
 
             {brokerMode && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                <label htmlFor="property-landlord" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Select Landlord Owner {landlordRequired && <span className="text-rose-500">*</span>}
                 </label>
                 <select
+                  id="property-landlord"
+                  name="landlordId"
                   value={formData.landlordId}
                   onChange={(e) => setFormData({ ...formData, landlordId: e.target.value })}
                   className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -299,10 +313,12 @@ export default function NewPropertyPage() {
             />
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              <label htmlFor="property-description" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Property Overview & Marketing Description
               </label>
               <textarea
+                id="property-description"
+                name="description"
                 rows={3}
                 placeholder="Mention highlights such as food mess, metro connectivity, private balconies..."
                 value={formData.description}
@@ -321,7 +337,12 @@ export default function NewPropertyPage() {
 
         {/* TAB 2: AMENITIES */}
         {activeTab === 'amenities' && (
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div
+            id="property-amenities-panel"
+            role="tabpanel"
+            aria-labelledby="property-amenities-tab"
+            className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200"
+          >
             <div>
               <h3 className="text-sm font-bold text-slate-900">Select Available Property Amenities</h3>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -365,7 +386,12 @@ export default function NewPropertyPage() {
 
         {/* TAB 3: HOUSE RULES */}
         {activeTab === 'rules' && (
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div
+            id="property-rules-panel"
+            role="tabpanel"
+            aria-labelledby="property-rules-tab"
+            className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200"
+          >
             <div>
               <h3 className="text-sm font-bold text-slate-900">House Rules & Tenancy Policies</h3>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -407,7 +433,12 @@ export default function NewPropertyPage() {
 
         {/* TAB 4: PHOTOS & MEDIA */}
         {activeTab === 'photos' && (
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div
+            id="property-photos-panel"
+            role="tabpanel"
+            aria-labelledby="property-photos-tab"
+            className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-5 animate-in fade-in duration-200"
+          >
             <div>
               <h3 className="text-sm font-bold text-slate-900">Property Photos & Gallery</h3>
               <p className="text-xs text-slate-500 mt-0.5">

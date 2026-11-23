@@ -21,7 +21,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className,
 }) => {
   return (
-    <div
+    <section
       className={cn(
         'flex flex-col items-center justify-center p-8 sm:p-12 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-white/50',
         className
@@ -39,6 +39,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </Button>
         </div>
       )}
-    </div>
+    </section>
   );
 };

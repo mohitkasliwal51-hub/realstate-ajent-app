@@ -164,7 +164,7 @@ export default function TenantSelfPortalPage() {
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Top Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white p-6 sm:p-8 shadow-xl border border-slate-800">
+      <section aria-labelledby="tenant-welcome" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white p-6 sm:p-8 shadow-xl border border-slate-800">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function TenantSelfPortalPage() {
                 </Badge>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            <h1 id="tenant-welcome" className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Welcome home, {user?.fullName || profile?.fullName || 'Resident'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
@@ -202,11 +202,11 @@ export default function TenantSelfPortalPage() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Mandatory KYC Warning Banner if Pending */}
       {profile?.kycStatus !== 'VERIFIED' && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <aside role="status" aria-label="KYC verification required" className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" />
@@ -225,7 +225,7 @@ export default function TenantSelfPortalPage() {
           >
             Complete KYC & Sign Lease ➔
           </Button>
-        </div>
+        </aside>
       )}
 
       {/* Balance & Tenancy Quick Highlights */}

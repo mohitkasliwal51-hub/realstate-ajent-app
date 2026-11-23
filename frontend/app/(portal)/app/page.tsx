@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -41,11 +41,16 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
     if (user?.role === 'TENANT') {
       router.replace('/app/tenant');
       return;
     }
-    if (!user?.organizationId) return;
+    if (!user?.organizationId) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -71,7 +76,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [user?.organizationId, user?.role, router]);
+  }, [user?.organizationId, user?.role, isAuthLoading, router]);
 
   // Derived metrics
   const activeLeases = leases.filter((l) => l.status === 'ACTIVE');
@@ -87,7 +92,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Top Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+      <section aria-labelledby="dashboard-welcome" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="absolute -right-8 -bottom-8 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
@@ -95,7 +100,7 @@ export default function DashboardPage() {
               <Sparkles className="w-3.5 h-3.5 text-blue-300" />
               <span>StayFile Property OS &bull; Portfolio Active</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            <h1 id="dashboard-welcome" className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Welcome back, {user?.fullName || 'Manager'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
@@ -116,10 +121,10 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Primary Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <section aria-label="Portfolio overview" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         <StatCard
           title="Properties"
           value={isLoading ? '...' : properties.length}
@@ -148,11 +153,11 @@ export default function DashboardPage() {
           icon={FileSpreadsheet}
           iconColor="text-indigo-600"
           iconBg="bg-indigo-50"
-          progress={collectionRate}
+          progress={isLoading ? undefined : collectionRate}
           progressColor="bg-indigo-600"
-          trend={formatCurrency(totalCollected)}
+          trend={isLoading ? undefined : formatCurrency(totalCollected)}
           trendDirection={collectionRate >= 80 ? 'up' : 'down'}
-          trendLabel={`of ${formatCurrency(totalInvoiced)}`}
+          trendLabel={isLoading ? undefined : `of ${formatCurrency(totalInvoiced)}`}
         />
 
         <StatCard
@@ -165,12 +170,12 @@ export default function DashboardPage() {
           trendDirection={urgentTickets.length > 0 ? 'down' : 'neutral'}
           trendLabel={`${tickets.length - openTickets.length} Resolved`}
         />
-      </div>
+      </section>
 
       {/* Operational Split: Recent Invoices & Maintenance Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section aria-label="Recent operational activity" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Invoices Widget */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
+        <article className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -197,13 +202,20 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : invoices.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500">
-                No invoices issued yet. Generate invoices for active leases.
+              <div className="py-8 px-4 text-center rounded-xl bg-slate-50/70 border border-dashed border-slate-200 my-1">
+                <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                <p className="text-xs font-semibold text-slate-700">No invoices issued yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 mb-3">Generate invoices for active tenant leases</p>
+                <Link href="/app/invoices">
+                  <Button variant="outline" size="sm" className="text-xs h-7 bg-white">
+                    <Plus className="w-3 h-3 mr-1" /> New Invoice
+                  </Button>
+                </Link>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100">
                 {invoices.slice(0, 4).map((inv) => (
-                  <div key={inv.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                  <li key={inv.id} className="py-3 flex items-center justify-between gap-3 text-xs">
                     <div className="min-w-0">
                       <div className="font-bold text-slate-900 truncate">
                         {inv.invoiceNumber || 'INV-DRAFT'}
@@ -225,15 +237,15 @@ export default function DashboardPage() {
                         {inv.status}
                       </Badge>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
-        </div>
+        </article>
 
         {/* Maintenance Tickets Widget */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
+        <article className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
@@ -260,13 +272,15 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : tickets.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500">
-                All maintenance tickets resolved. No pending issues!
+              <div className="py-8 px-4 text-center rounded-xl bg-slate-50/70 border border-dashed border-slate-200 my-1">
+                <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500/80 mb-2" />
+                <p className="text-xs font-semibold text-slate-700">All maintenance tickets resolved</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">No pending tenant complaints or repair requests</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100">
                 {tickets.slice(0, 4).map((ticket) => (
-                  <div key={ticket.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                  <li key={ticket.id} className="py-3 flex items-center justify-between gap-3 text-xs">
                     <div className="min-w-0">
                       <div className="font-bold text-slate-900 truncate">{ticket.title}</div>
                       <div className="text-[11px] text-slate-500">
@@ -286,17 +300,17 @@ export default function DashboardPage() {
                         {ticket.status}
                       </Badge>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
-        </div>
-      </div>
+        </article>
+      </section>
 
       {/* Quick Action Navigation Grid */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Quick Action Workflows</h2>
+      <nav aria-labelledby="quick-actions-heading" className="space-y-3">
+        <h2 id="quick-actions-heading" className="text-sm font-bold text-slate-900 uppercase tracking-wider">Quick Action Workflows</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/app/properties"
@@ -346,7 +360,7 @@ export default function DashboardPage() {
             </p>
           </Link>
         </div>
-      </div>
+      </nav>
     </div>
   );
 }

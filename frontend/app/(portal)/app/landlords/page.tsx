@@ -292,7 +292,7 @@ export default function LandlordsPage() {
         title={editingLandlord ? 'Edit Landlord' : 'Add Property Owner'}
         description="Onboard an external property owner to assign properties and track payouts."
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-label={editingLandlord ? 'Edit landlord details' : 'Add property owner'}>
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Legal Name *"

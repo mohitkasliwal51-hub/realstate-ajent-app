@@ -174,6 +174,7 @@ export default function ReceiptsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
+              <caption className="sr-only">Payment receipts and download links</caption>
               <thead className="bg-slate-50 border-b border-slate-200 uppercase tracking-wider text-slate-500 font-semibold">
                 <tr>
                   <th className="px-6 py-3.5">Receipt #</th>
@@ -224,10 +225,12 @@ export default function ReceiptsPage() {
       >
         <form onSubmit={handleCreateReceipt} className="space-y-4">
           <div className="w-full flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+            <label htmlFor="receipt-lease" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
               1. Select Valid Lease
             </label>
             <select
+              id="receipt-lease"
+              name="leaseId"
               className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.leaseId}
               onChange={(e) => handleLeaseSelect(e.target.value)}

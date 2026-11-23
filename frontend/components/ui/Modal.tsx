@@ -21,6 +21,9 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   className,
 }) => {
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -50,7 +53,8 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={cn(
           'relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] z-10 animate-in zoom-in-95 duration-150',
           className
@@ -58,11 +62,11 @@ export const Modal: React.FC<ModalProps> = ({
       >
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div>
-            <h3 id="modal-title" className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+            <h2 id={titleId} className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
               {title}
-            </h3>
+            </h2>
             {description && (
-              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
+              <p id={descriptionId} className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
             )}
           </div>
           <button

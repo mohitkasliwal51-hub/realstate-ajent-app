@@ -97,6 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
       {/* Navigation Links */}
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+        <h2 className="sr-only">{isTenant ? 'Tenant navigation' : 'Workspace navigation'}</h2>
         <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
           {isTenant ? 'Tenant Hub' : 'Management Console'}
         </div>

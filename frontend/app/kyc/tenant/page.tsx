@@ -247,31 +247,39 @@ function TenantKycContent() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Stepper Header */}
-      <div className="grid grid-cols-4 gap-2 text-center text-xs">
+      <nav aria-label="Tenant KYC steps" className="grid grid-cols-4 gap-2 text-center text-xs">
         {[
           { num: 1, label: 'Identity KYC' },
           { num: 2, label: 'Police Verification' },
           { num: 3, label: 'Emergency Contact' },
           { num: 4, label: 'Lease E-Sign' },
-        ].map((s) => (
-          <div
-            key={s.num}
-            onClick={() => {
-              if (s.num < currentStep) setCurrentStep(s.num as any);
-            }}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-              currentStep === s.num
-                ? 'bg-blue-500/10 border-blue-500 text-blue-400 font-bold'
-                : currentStep > s.num
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
-            }`}
-          >
-            <div className="text-[10px] uppercase tracking-wider text-slate-400">Step 0{s.num}</div>
-            <div className="truncate text-xs">{s.label}</div>
-          </div>
-        ))}
-      </div>
+        ].map((s) => {
+          const isNavigable = s.num < currentStep;
+          return (
+            <button
+              key={s.num}
+              type="button"
+              disabled={!isNavigable && s.num !== currentStep}
+              aria-current={currentStep === s.num ? 'step' : undefined}
+              onClick={() => {
+                if (isNavigable) setCurrentStep(s.num as any);
+              }}
+              className={`p-3 rounded-2xl border transition-all text-center ${
+                isNavigable ? 'cursor-pointer hover:border-emerald-400' : s.num === currentStep ? 'cursor-default' : 'cursor-not-allowed opacity-60'
+              } ${
+                currentStep === s.num
+                  ? 'bg-blue-500/10 border-blue-500 text-blue-400 font-bold'
+                  : currentStep > s.num
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold'
+                  : 'bg-slate-900 border-slate-800 text-slate-500'
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">Step 0{s.num}</div>
+              <div className="truncate text-xs">{s.label}</div>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Main Step Container */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-6">

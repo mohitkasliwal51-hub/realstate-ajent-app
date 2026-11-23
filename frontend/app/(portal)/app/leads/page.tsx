@@ -72,6 +72,7 @@ export default function LeadsPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs">
+            <caption className="sr-only">CRM lead pipeline records</caption>
             <thead className="bg-slate-50 border-b border-slate-200 uppercase tracking-wider text-slate-500 font-semibold">
               <tr>
                 <th className="px-6 py-3.5">Lead Name</th>

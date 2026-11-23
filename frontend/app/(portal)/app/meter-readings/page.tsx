@@ -330,6 +330,7 @@ export default function MeterReadingsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
+              <caption className="sr-only">Utility meter readings and verification status</caption>
               <thead className="bg-slate-50 border-b border-slate-200 uppercase tracking-wider text-slate-500 font-semibold">
                 <tr>
                   <th className="px-6 py-3.5">Reading Date</th>

@@ -26,15 +26,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
         )}
 
-        <div className="relative w-full">
+        <form role="search" className="relative w-full" onSubmit={(event) => event.preventDefault()}>
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
+            name="search"
             type="text"
             placeholder={isTenant ? 'Search documents, bills & tickets...' : 'Search properties, units, tenants...'}
             aria-label={isTenant ? 'Search documents and requests' : 'Search properties and tenants'}
             className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:text-slate-400 text-slate-900"
           />
-        </div>
+        </form>
       </div>
 
       {/* Right Header Controls */}

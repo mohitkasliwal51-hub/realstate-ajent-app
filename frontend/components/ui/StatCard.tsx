@@ -11,7 +11,7 @@ export interface StatCardProps {
   trend?: string;
   trendDirection?: 'up' | 'down' | 'neutral';
   trendLabel?: string;
-  progress?: number; // 0 - 100
+  progress?: number;
   progressColor?: string;
   description?: string;
   className?: string;
@@ -38,7 +38,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div
+    <article
       className={cn(
         'bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group',
         className
@@ -91,6 +91,6 @@ export const StatCard: React.FC<StatCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 };

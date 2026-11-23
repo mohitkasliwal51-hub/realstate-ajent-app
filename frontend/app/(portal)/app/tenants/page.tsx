@@ -165,6 +165,7 @@ export default function TenantsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
+              <caption className="sr-only">Tenant onboarding records and KYC status</caption>
               <thead className="bg-slate-50 border-b border-slate-200 uppercase tracking-wider text-slate-500 font-semibold">
                 <tr>
                   <th className="px-6 py-3.5">Tenant Name</th>
@@ -226,16 +227,17 @@ export default function TenantsPage() {
         description="Step-by-step basic details, emergency contact & KYC info"
       >
         <form onSubmit={handleCreateTenant} className="space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <header className="flex items-center justify-between border-b border-slate-100 pb-3">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Step {currentStep} of 5</p>
-            <div className="flex gap-1.5">
+            <ol aria-label="Tenant onboarding progress" className="flex gap-1.5">
               {[1, 2, 3, 4, 5].map((step) => (
-                <span key={step} className={`h-1.5 w-6 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                <li key={step} aria-label={`Step ${step}${step <= currentStep ? ', completed or current' : ', upcoming'}`} className={`h-1.5 w-6 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-slate-200'}`} />
               ))}
-            </div>
-          </div>
+            </ol>
+          </header>
 
-          {currentStep === 1 && <>
+          {currentStep === 1 && <fieldset className="space-y-4">
+          <legend className="text-sm font-bold text-slate-900 mb-1">Basic tenant details</legend>
           <Input
             label="Full Name"
             placeholder="e.g. Rahul Sharma"
@@ -262,40 +264,47 @@ export default function TenantsPage() {
               required
             />
           </div>
-          </>}
+          </fieldset>}
 
-          {currentStep === 2 && <div className="grid grid-cols-2 gap-3">
+          {currentStep === 2 && (
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-bold text-slate-900 mb-1">Emergency contact</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="2. Emergency Contact Name"
+                  placeholder="Parent / Guardian"
+                  value={formData.emergencyContactName}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
+                />
+                <Input
+                  label="Emergency Phone"
+                  placeholder="+91 9876543210"
+                  value={formData.emergencyContactPhone}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
+                />
+              </div>
+              <Input
+                label="Relation"
+                placeholder="Parent / Guardian"
+                value={formData.emergencyContactRelation}
+                onChange={(e) => setFormData({ ...formData, emergencyContactRelation: e.target.value })}
+              />
+            </fieldset>
+          )}
+
+          {currentStep === 3 && <fieldset>
+            <legend className="text-sm font-bold text-slate-900 mb-3">Permanent address</legend>
             <Input
-              label="2. Emergency Contact Name"
-              placeholder="Parent / Guardian"
-              value={formData.emergencyContactName}
-              onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-            />
-            <Input
-              label="Emergency Phone"
-              placeholder="+91 9876543210"
-              value={formData.emergencyContactPhone}
-              onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
-            />
-          </div>
-          }
-
-          {currentStep === 2 && <Input
-            label="Relation"
-            placeholder="Parent / Guardian"
-            value={formData.emergencyContactRelation}
-            onChange={(e) => setFormData({ ...formData, emergencyContactRelation: e.target.value })}
-          />}
-
-          {currentStep === 3 && <Input
             label="Permanent Address"
             placeholder="Home address details"
             value={formData.permanentAddress}
             onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-          />}
+            />
+          </fieldset>}
 
           {currentStep === 4 && (
-            <div className="space-y-3">
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-bold text-slate-900 mb-1">Identity verification</legend>
               <div className="grid grid-cols-2 gap-3">
                 <div className="w-full flex flex-col gap-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -327,7 +336,7 @@ export default function TenantsPage() {
                 value={formData.idProofDocumentUrl}
                 onChange={(url) => setFormData({ ...formData, idProofDocumentUrl: url })}
               />
-            </div>
+            </fieldset>
           )}
 
           {currentStep === 5 && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
