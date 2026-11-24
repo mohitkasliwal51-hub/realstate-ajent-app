@@ -1,43 +1,63 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, Plus, Mail, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  Users,
+  Plus,
+  Mail,
+  Phone,
+  Building2,
+  BedDouble,
+  Copy,
+  Check,
+  Share2,
+  ExternalLink,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { tenantApi, Tenant, VerificationStatus } from '@/lib/api/tenantApi';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
-import { FileUpload } from '@/components/ui/FileUpload';
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { validateIndianPhone, validateAadhaar } from '@/lib/validation';
 import { useToast } from '@/lib/toast/ToastContext';
 
+interface TenantMetadata {
+  inviteToken?: string;
+  propertyId?: string;
+  propertyName?: string;
+  unitId?: string;
+  unitNumber?: string;
+  sharingType?: string;
+  monthlyRent?: number;
+  securityDeposit?: number;
+  tokenPaid?: number;
+  expectedMoveInDate?: string;
+  notes?: string;
+  status?: string;
+  invitedAt?: string;
+}
+
+const parseMetadata = (raw?: string): TenantMetadata | null => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export default function TenantsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [kycFilter, setKycFilter] = useState('ALL');
-
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    emergencyContactRelation: '',
-    permanentAddress: '',
-    idProofType: 'Aadhaar Card',
-    idProofNumber: '',
-    idProofDocumentUrl: '',
-  });
+  const [copiedTenantId, setCopiedTenantId] = useState<string | null>(null);
 
   const loadTenants = async () => {
     if (!user?.organizationId) return;
@@ -56,63 +76,68 @@ export default function TenantsPage() {
     loadTenants();
   }, [user?.organizationId]);
 
-  const handleCreateTenant = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.organizationId) return;
-    if (formData.phone && !validateIndianPhone(formData.phone)) {
-      toast.warning('Invalid 10-digit Indian phone number.');
-      return;
-    }
-    if (formData.emergencyContactPhone && !validateIndianPhone(formData.emergencyContactPhone)) {
-      toast.warning('Invalid 10-digit Indian emergency contact phone number.');
-      return;
-    }
-    if (formData.idProofType === 'Aadhaar Card' && formData.idProofNumber && !validateAadhaar(formData.idProofNumber)) {
-      toast.warning('Invalid 12-digit Aadhaar Card number.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await tenantApi.createTenant({
-        ...formData,
-        idProofDocumentUrl: formData.idProofDocumentUrl || undefined,
-      });
-      toast.success('Tenant registered successfully!');
-      setIsModalOpen(false);
-      setCurrentStep(1);
-      setFormData({
-        fullName: '',
-        email: '',
-        phone: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        emergencyContactRelation: '',
-        permanentAddress: '',
-        idProofType: 'Aadhaar Card',
-        idProofNumber: '',
-        idProofDocumentUrl: '',
-      });
-      await loadTenants();
-    } catch (err) {
-      toast.error('Failed to register tenant.');
-    } finally {
-      setIsSubmitting(false);
-    }
+  const getInviteLink = (tenant: Tenant) => {
+    const meta = parseMetadata(tenant.metadata);
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const params = new URLSearchParams({
+      invite: meta?.inviteToken || tenant.id,
+      propertyId: meta?.propertyId || '',
+      propertyName: meta?.propertyName || '',
+      unitId: meta?.unitId || '',
+      unitNumber: meta?.unitNumber || '',
+      sharingType: meta?.sharingType || '',
+      monthlyRent: String(meta?.monthlyRent || 0),
+      securityDeposit: String(meta?.securityDeposit || 0),
+      tokenPaid: String(meta?.tokenPaid || 0),
+      fullName: tenant.fullName,
+      phone: tenant.phone,
+      email: tenant.email || '',
+    });
+    return `${origin}/kyc/tenant?${params.toString()}`;
   };
 
-  const getKycBadge = (status: VerificationStatus) => {
-    if (status === 'VERIFIED') return <Badge variant="success" dot>KYC Verified</Badge>;
-    if (status === 'REJECTED') return <Badge variant="danger" dot>KYC Rejected</Badge>;
+  const handleCopyInvite = (tenant: Tenant) => {
+    const link = getInviteLink(tenant);
+    navigator.clipboard.writeText(link);
+    setCopiedTenantId(tenant.id);
+    toast.success('Self-KYC Invite Link copied!');
+    setTimeout(() => setCopiedTenantId(null), 2500);
+  };
+
+  const handleWhatsAppShare = (tenant: Tenant) => {
+    const meta = parseMetadata(tenant.metadata);
+    const link = getInviteLink(tenant);
+    const cleanPhone = tenant.phone.replace(/[^0-9]/g, '');
+    const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    const message = `Hello ${tenant.fullName}, your tenancy onboarding at ${
+      meta?.propertyName || 'StayFile Property'
+    } is ready. Please complete your KYC verification and review your tenancy agreement here: ${link}`;
+    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const getKycBadge = (tenant: Tenant) => {
+    const meta = parseMetadata(tenant.metadata);
+    if (tenant.kycStatus === 'VERIFIED') {
+      return <Badge variant="success" dot>KYC Verified</Badge>;
+    }
+    if (tenant.kycStatus === 'REJECTED') {
+      return <Badge variant="danger" dot>KYC Rejected</Badge>;
+    }
+    if (meta?.status === 'INVITED') {
+      return <Badge variant="warning" dot>Invited (Pending KYC)</Badge>;
+    }
     return <Badge variant="warning" dot>KYC Pending</Badge>;
   };
 
   const filteredTenants = tenants.filter((t) => {
+    const meta = parseMetadata(t.metadata);
     const matchesSearch =
       searchTerm === '' ||
       t.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+      t.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meta?.propertyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meta?.unitNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesKyc = kycFilter === 'ALL' || t.kycStatus === kycFilter;
     return matchesSearch && matchesKyc;
   });
@@ -130,36 +155,38 @@ export default function TenantsPage() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Tenants & Onboarding</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Guided onboarding, emergency contacts, permanent address details, and ID verification status.
+            Invite prospective tenants, manage property/bed allocations, and track self-service KYC status.
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Register Tenant
-        </Button>
+        <Link href="/app/tenants/new">
+          <Button>
+            <Plus className="w-4 h-4 mr-2" /> Onboard Tenant
+          </Button>
+        </Link>
       </div>
 
       <SearchFilterBar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="Search tenants by name, email or phone..."
+        placeholder="Search tenants by name, email, phone, or property..."
         filterOptions={filterOptions}
         activeFilter={kycFilter}
         onFilterChange={setKycFilter}
       />
 
       {isLoading ? (
-        <TableSkeleton rows={5} columns={4} />
+        <TableSkeleton rows={5} columns={5} />
       ) : filteredTenants.length === 0 ? (
         <EmptyState
           icon={Users}
           title={tenants.length === 0 ? 'No tenants registered yet' : 'No tenants match your filter'}
           description={
             tenants.length === 0
-              ? 'Onboard your first tenant to start lease agreements.'
+              ? 'Onboard your first tenant to dispatch digital KYC and lease agreement invitations.'
               : 'Try adjusting your search query or selecting a different KYC status filter.'
           }
-          actionLabel={tenants.length === 0 ? 'Register Tenant' : undefined}
-          onAction={tenants.length === 0 ? () => setIsModalOpen(true) : undefined}
+          actionLabel="Onboard Tenant"
+          onAction={() => router.push('/app/tenants/new')}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
@@ -170,196 +197,119 @@ export default function TenantsPage() {
                 <tr>
                   <th className="px-6 py-3.5">Tenant Name</th>
                   <th className="px-6 py-3.5">Contact Info</th>
-                  <th className="px-6 py-3.5">ID Proof & Address</th>
+                  <th className="px-6 py-3.5">Property & Room / Bed</th>
                   <th className="px-6 py-3.5">KYC Status</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredTenants.map((tenant) => (
-                  <tr key={tenant.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
-                          {tenant.fullName.charAt(0)}
+                {filteredTenants.map((tenant) => {
+                  const meta = parseMetadata(tenant.metadata);
+                  const isCopied = copiedTenantId === tenant.id;
+                  const isPending = tenant.kycStatus !== 'VERIFIED';
+
+                  return (
+                    <tr key={tenant.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
+                            {tenant.fullName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 text-sm">{tenant.fullName}</p>
+                            {tenant.emergencyContactName ? (
+                              <p className="text-[11px] text-slate-400">
+                                Emergency: {tenant.emergencyContactName} ({tenant.emergencyContactPhone})
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-slate-400">
+                                {meta?.expectedMoveInDate ? `Move-in: ${meta.expectedMoveInDate}` : 'New Prospective Tenant'}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm">{tenant.fullName}</p>
-                          {tenant.emergencyContactName && (
-                            <p className="text-[11px] text-slate-400">
-                              Emergency: {tenant.emergencyContactName} ({tenant.emergencyContactPhone})
-                            </p>
-                          )}
+                      </td>
+                      <td className="px-6 py-4 space-y-1">
+                        <div className="flex items-center gap-1.5 text-slate-600">
+                          <Mail className="w-3.5 h-3.5 text-slate-400" /> {tenant.email || '—'}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 space-y-1">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <Mail className="w-3.5 h-3.5 text-slate-400" /> {tenant.email}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" /> {tenant.phone}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 space-y-1">
-                      {tenant.idProofLast4 && (
-                        <p className="text-slate-700 font-semibold">
-                          {tenant.idProofType}: ****{tenant.idProofLast4}
-                        </p>
-                      )}
-                      {tenant.permanentAddress && (
-                        <p className="text-slate-500 truncate max-w-xs">{tenant.permanentAddress}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">{getKycBadge(tenant.kycStatus)}</td>
-                  </tr>
-                ))}
+                        <div className="flex items-center gap-1.5 text-slate-600">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" /> {tenant.phone}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 space-y-1">
+                        {meta?.propertyName ? (
+                          <>
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                              {meta.propertyName}
+                            </div>
+                            {meta.unitNumber && (
+                              <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+                                <BedDouble className="w-3.5 h-3.5 text-slate-400" />
+                                {meta.unitNumber} {meta.sharingType ? `(${meta.sharingType.replace('_', ' ')})` : ''}
+                              </div>
+                            )}
+                          </>
+                        ) : tenant.permanentAddress && tenant.permanentAddress !== 'Pending Self-KYC' ? (
+                          <p className="text-slate-500 truncate max-w-xs">{tenant.permanentAddress}</p>
+                        ) : (
+                          <span className="text-slate-400 italic">Allocation Pending</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">{getKycBadge(tenant)}</td>
+                      <td className="px-6 py-4 text-right">
+                        {isPending ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyInvite(tenant)}
+                              title="Copy Self-KYC Invite Link"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+                            >
+                              {isCopied ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="text-emerald-600 font-medium">Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                                  <span>Copy Invite</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleWhatsAppShare(tenant)}
+                              title="Share Invite on WhatsApp"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition-colors shadow-2xs"
+                            >
+                              <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>WhatsApp</span>
+                            </button>
+                            <a
+                              href={getInviteLink(tenant)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Open Self-KYC Page"
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </div>
+                        ) : (
+                          <Badge variant="success">Completed</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
-
-      {/* Add Tenant Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Guided Tenant Onboarding"
-        description="Step-by-step basic details, emergency contact & KYC info"
-      >
-        <form onSubmit={handleCreateTenant} className="space-y-4">
-          <header className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Step {currentStep} of 5</p>
-            <ol aria-label="Tenant onboarding progress" className="flex gap-1.5">
-              {[1, 2, 3, 4, 5].map((step) => (
-                <li key={step} aria-label={`Step ${step}${step <= currentStep ? ', completed or current' : ', upcoming'}`} className={`h-1.5 w-6 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-slate-200'}`} />
-              ))}
-            </ol>
-          </header>
-
-          {currentStep === 1 && <fieldset className="space-y-4">
-          <legend className="text-sm font-bold text-slate-900 mb-1">Basic tenant details</legend>
-          <Input
-            label="Full Name"
-            placeholder="e.g. Rahul Sharma"
-            value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="rahul@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-            <Input
-              label="Phone Number"
-              type="tel"
-              placeholder="+91 9876543210"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              required
-            />
-          </div>
-          </fieldset>}
-
-          {currentStep === 2 && (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-bold text-slate-900 mb-1">Emergency contact</legend>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="2. Emergency Contact Name"
-                  placeholder="Parent / Guardian"
-                  value={formData.emergencyContactName}
-                  onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                />
-                <Input
-                  label="Emergency Phone"
-                  placeholder="+91 9876543210"
-                  value={formData.emergencyContactPhone}
-                  onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
-                />
-              </div>
-              <Input
-                label="Relation"
-                placeholder="Parent / Guardian"
-                value={formData.emergencyContactRelation}
-                onChange={(e) => setFormData({ ...formData, emergencyContactRelation: e.target.value })}
-              />
-            </fieldset>
-          )}
-
-          {currentStep === 3 && <fieldset>
-            <legend className="text-sm font-bold text-slate-900 mb-3">Permanent address</legend>
-            <Input
-            label="Permanent Address"
-            placeholder="Home address details"
-            value={formData.permanentAddress}
-            onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-            />
-          </fieldset>}
-
-          {currentStep === 4 && (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-bold text-slate-900 mb-1">Identity verification</legend>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="w-full flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    4. ID Proof Type
-                  </label>
-                  <select
-                    className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.idProofType}
-                    onChange={(e) => setFormData({ ...formData, idProofType: e.target.value })}
-                  >
-                    <option value="Aadhaar Card">Aadhaar Card</option>
-                    <option value="PAN Card">PAN Card</option>
-                    <option value="Passport">Passport</option>
-                    <option value="Driving License">Driving License</option>
-                  </select>
-                </div>
-
-                <Input
-                  label="ID Proof Number"
-                  placeholder="e.g. 1234-5678-9012"
-                  value={formData.idProofNumber}
-                  onChange={(e) => setFormData({ ...formData, idProofNumber: e.target.value })}
-                />
-              </div>
-
-              <FileUpload
-                category="TENANT_KYC"
-                label="Upload ID Proof Document (PDF / Image)"
-                value={formData.idProofDocumentUrl}
-                onChange={(url) => setFormData({ ...formData, idProofDocumentUrl: url })}
-              />
-            </fieldset>
-          )}
-
-          {currentStep === 5 && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-            Review complete. Submit this tenant profile for KYC verification.
-          </div>}
-
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            {currentStep > 1 && <Button type="button" variant="outline" onClick={() => setCurrentStep((step) => step - 1)}>
-              <ChevronLeft className="mr-1 h-4 w-4" /> Back
-            </Button>}
-            {currentStep < 5 ? (
-              <Button type="button" onClick={() => setCurrentStep((step) => step + 1)}>
-                Next <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button type="submit" isLoading={isSubmitting}>Submit for Verification</Button>
-            )}
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

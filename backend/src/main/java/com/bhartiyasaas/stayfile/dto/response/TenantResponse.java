@@ -29,6 +29,7 @@ public class TenantResponse {
     private String idProofLast4;
     private VerificationStatus kycStatus;
     private String idProofDocumentUrl;
+    private String metadata;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

@@ -16,6 +16,11 @@ import {
   ArrowLeft,
   Sparkles,
   Lock,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  Key,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -46,11 +51,24 @@ function TenantKycContent() {
   const { toast } = useToast();
 
   const propertyId = searchParams.get('propertyId');
+  const propertyName = searchParams.get('propertyName');
   const unitId = searchParams.get('unitId');
+  const unitNumber = searchParams.get('unitNumber');
+  const sharingType = searchParams.get('sharingType');
+  const monthlyRent = searchParams.get('monthlyRent');
+  const securityDeposit = searchParams.get('securityDeposit');
   const tokenPaidParam = searchParams.get('tokenPaid');
+  const inviteToken = searchParams.get('invite');
   const initialName = searchParams.get('fullName') || user?.fullName || '';
   const initialPhone = searchParams.get('phone') || user?.phone || '';
   const initialEmail = searchParams.get('email') || user?.email || '';
+
+  const [residentCredentials, setResidentCredentials] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedField, setCopiedField] = useState<'username' | 'password' | 'all' | null>(null);
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [kycMethod, setKycMethod] = useState<'digilocker' | 'masking'>('digilocker');
@@ -209,6 +227,11 @@ function TenantKycContent() {
 
     setIsSubmitting(true);
     try {
+      // Auto-generate credentials for resident portal access
+      const generatedPassword = `Stay@${Math.floor(1000 + Math.random() * 9000)}`;
+      const residentUsername =
+        initialEmail || initialPhone || (policeData.fullName ? policeData.fullName.toLowerCase().replace(/[^a-z0-9]/g, '') : 'resident');
+
       const payload = {
         fullName: policeData.fullName || digitalSignatureName,
         phone: initialPhone || emergencyData.contactPhone,
@@ -219,6 +242,20 @@ function TenantKycContent() {
         emergencyContactRelation: emergencyData.contactRelation,
         idProofType: isPanVerified ? 'PAN' : 'AADHAAR',
         idProofNumber: panNumber || 'XXXX-XXXX-4589',
+        propertyId: propertyId || undefined,
+        unitId: unitId || undefined,
+        metadata: JSON.stringify({
+          inviteToken: inviteToken || undefined,
+          propertyName: propertyName || undefined,
+          unitNumber: unitNumber || undefined,
+          sharingType: sharingType || undefined,
+          monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
+          securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
+          tokenPaid: tokenPaidParam ? Number(tokenPaidParam) : undefined,
+          status: 'COMPLETED',
+          completedAt: new Date().toISOString(),
+          accountGenerated: true,
+        }),
       };
 
       try {
@@ -227,6 +264,7 @@ function TenantKycContent() {
         // Fallback for simulated profile
       }
 
+      setResidentCredentials({ username: residentUsername, password: generatedPassword });
       setIsCompleted(true);
       toast.success('KYC & Tenancy Agreement completed successfully!');
     } catch (err: any) {
@@ -237,21 +275,154 @@ function TenantKycContent() {
   };
 
   if (isCompleted) {
+    const handleCopy = (text: string, field: 'username' | 'password' | 'all') => {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast.success(`${field === 'password' ? 'Password' : field === 'username' ? 'Username' : 'Credentials'} copied!`);
+      setTimeout(() => setCopiedField(null), 2500);
+    };
+
     return (
-      <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-2xl text-center space-y-6 max-w-xl mx-auto mt-8">
+      <div className="p-6 sm:p-10 rounded-3xl bg-white border border-slate-200 shadow-2xl text-center space-y-6 max-w-xl mx-auto mt-4">
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center font-bold text-3xl">
           ✓
         </div>
         <div className="space-y-1">
-          <Badge variant="success">Verification Completed</Badge>
-          <h2 className="text-2xl font-black text-slate-900 mt-2">All Set for Move-in!</h2>
+          <Badge variant="success">Verification & E-Sign Complete</Badge>
+          <h2 className="text-2xl font-black text-slate-900 mt-2">Welcome to Your New Home!</h2>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             Your statutory Police Verification record and digital Tenancy Agreement have been securely filed with the property manager.
           </p>
         </div>
 
+        {/* Generated Resident Portal Credentials Card */}
+        {residentCredentials && (
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/70 border border-blue-200 text-left space-y-3.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-950 font-bold text-sm">
+                <Key className="w-4 h-4 text-blue-600" />
+                <span>Your Resident Portal Account</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                  handleCopy(
+                    `StayFile Portal Login\nUsername: ${residentCredentials.username}\nTemporary Password: ${residentCredentials.password}\nPortal URL: ${origin}/login`,
+                    'all'
+                  );
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-white px-2 py-1 rounded-lg border border-blue-200 shadow-2xs transition-colors"
+              >
+                {copiedField === 'all' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Copied All</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy All</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-[11px] text-blue-900/80 leading-relaxed">
+              We have generated your login credentials so you can access rent receipts, lodge maintenance requests, and track utility bills.
+            </p>
+
+            <div className="space-y-2 pt-1 font-mono text-xs">
+              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-blue-100">
+                <span className="text-slate-500 font-sans text-xs">Username / ID:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">{residentCredentials.username}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(residentCredentials.username, 'username')}
+                    className="text-slate-400 hover:text-slate-700 p-1"
+                    title="Copy Username"
+                  >
+                    {copiedField === 'username' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-blue-100">
+                <span className="text-slate-500 font-sans text-xs">Temporary Password:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 tracking-wider">
+                    {showPassword ? residentCredentials.password : '••••••••'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-400 hover:text-slate-700 p-1"
+                    title={showPassword ? 'Hide Password' : 'Show Password'}
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(residentCredentials.password, 'password')}
+                    className="text-slate-400 hover:text-slate-700 p-1"
+                    title="Copy Password"
+                  >
+                    {copiedField === 'password' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-blue-800 bg-blue-100/60 rounded-xl p-2.5">
+              💡 These credentials have also been dispatched to your email (<strong>{initialEmail || 'your registered email'}</strong>) and WhatsApp. You can change your password anytime after logging in.
+            </div>
+          </div>
+        )}
+
+        {/* Allotment & Tenancy Summary Card */}
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2">
-          <div className="flex justify-between">
+          {propertyName && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Property:</span>
+              <span className="font-bold text-slate-900">{propertyName}</span>
+            </div>
+          )}
+          {unitNumber && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Room / Bed:</span>
+              <span className="font-semibold text-slate-800">
+                {unitNumber} {sharingType ? `(${sharingType.replace('_', ' ')})` : ''}
+              </span>
+            </div>
+          )}
+          {monthlyRent && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Monthly Rent:</span>
+              <span className="font-bold text-slate-900">₹{Number(monthlyRent).toLocaleString('en-IN')}/mo</span>
+            </div>
+          )}
+          {securityDeposit && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Security Deposit:</span>
+              <span className="font-semibold text-slate-800">₹{Number(securityDeposit).toLocaleString('en-IN')}</span>
+            </div>
+          )}
+          {tokenPaidParam && Number(tokenPaidParam) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Token Advance Credited:</span>
+              <span className="font-bold text-emerald-600">₹{Number(tokenPaidParam).toLocaleString('en-IN')}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-1 border-t border-slate-200">
             <span className="text-slate-500">Legal Resident:</span>
             <span className="font-bold text-slate-900">{digitalSignatureName}</span>
           </div>
@@ -281,6 +452,52 @@ function TenantKycContent() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Property Allotment Card (if invited for a specific property) */}
+      {propertyName && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 rounded-3xl p-5 text-white shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
+                Property & Room Allocation
+              </span>
+            </div>
+            <Badge variant="purple">Invitation Verified</Badge>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1 border-t border-white/10">
+            <div>
+              <h2 className="font-black text-lg text-white">{propertyName}</h2>
+              <p className="text-xs text-indigo-200 mt-0.5">
+                {unitNumber ? `Room / Bed: ${unitNumber}` : 'Room allocation pending'}
+                {sharingType ? ` • ${sharingType.replace('_', ' ')} Sharing` : ''}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs bg-white/5 rounded-2xl p-3 border border-white/10">
+              {monthlyRent && (
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Monthly Rent</span>
+                  <span className="font-bold text-white text-sm">₹{Number(monthlyRent).toLocaleString('en-IN')}/mo</span>
+                </div>
+              )}
+              {securityDeposit && (
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Deposit</span>
+                  <span className="font-bold text-white text-sm">₹{Number(securityDeposit).toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {tokenPaidParam && Number(tokenPaidParam) > 0 && (
+                <div>
+                  <span className="text-emerald-400 block text-[10px] uppercase font-semibold">Advance Token</span>
+                  <span className="font-bold text-emerald-300 text-sm">₹{Number(tokenPaidParam).toLocaleString('en-IN')} (Credited)</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stepper Header */}
       <nav aria-label="Tenant KYC steps" className="grid grid-cols-4 gap-2 text-center text-xs">
         {[
@@ -703,14 +920,24 @@ function TenantKycContent() {
                 <Badge variant="purple">Legal Contract</Badge>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase">Token Holding Credit</span>
-                  <span className="font-bold text-emerald-600">-₹{tokenPaidParam || '2,000'} (Credited)</span>
+                  <span className="text-slate-400 block text-[10px] uppercase">Monthly Rent</span>
+                  <span className="font-bold text-slate-900">
+                    ₹{monthlyRent ? Number(monthlyRent).toLocaleString('en-IN') : '12,000'}/mo
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase">Lock-in Period</span>
-                  <span className="font-bold text-slate-900">3 Months</span>
+                  <span className="text-slate-400 block text-[10px] uppercase">Security Deposit</span>
+                  <span className="font-bold text-slate-900">
+                    ₹{securityDeposit ? Number(securityDeposit).toLocaleString('en-IN') : '20,000'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">Token Paid</span>
+                  <span className="font-bold text-emerald-600">
+                    -₹{tokenPaidParam ? Number(tokenPaidParam).toLocaleString('en-IN') : '2,000'} (Credited)
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase">Notice Period</span>

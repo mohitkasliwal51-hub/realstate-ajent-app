@@ -25,7 +25,7 @@ public class TenantCreateRequest {
     @NotBlank(message = "Phone number is required")
     private String phone;
 
-    @NotBlank(message = "Permanent address is required")
+    // Optional during owner invitation stage; populated during tenant self-KYC
     private String permanentAddress;
 
     private String emergencyContactName;
@@ -35,4 +35,8 @@ public class TenantCreateRequest {
     private String idProofType;
     private String idProofNumber;
     private String idProofDocumentUrl;
+
+    private UUID propertyId;
+    private UUID unitId;
+    private String metadata;
 }

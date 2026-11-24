@@ -46,6 +46,13 @@ public class TenantServiceImpl implements TenantService {
         Tenant tenant = tenantMapper.toEntity(request);
         tenant.setOrganization(organization);
 
+        if (tenant.getPermanentAddress() == null || tenant.getPermanentAddress().isBlank()) {
+            tenant.setPermanentAddress("Pending Self-KYC");
+        }
+        if (request.getMetadata() != null && !request.getMetadata().isBlank()) {
+            tenant.setMetadata(request.getMetadata());
+        }
+
         if (request.getUserId() != null) {
             Profile user = profileRepository.findById(request.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("Tenant user profile not found with ID: " + request.getUserId()));
