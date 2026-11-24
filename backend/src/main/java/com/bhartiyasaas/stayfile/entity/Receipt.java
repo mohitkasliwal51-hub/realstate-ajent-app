@@ -61,7 +61,7 @@ public class Receipt {
     @Builder.Default
     private PaymentMode paymentMode = PaymentMode.UPI;
 
-    @Column(name = "transaction_ref")
+    @Column(name = "transaction_reference")
     private String transactionReference;
 
     @Builder.Default

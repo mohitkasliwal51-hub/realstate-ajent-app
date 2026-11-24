@@ -50,7 +50,7 @@ public class KybVerificationServiceImpl implements KybVerificationService {
                 "/gstin",
                 CashfreeGstinRequest.builder().gstin(gstin).businessName(trimToNull(request.getBusinessName())).build(),
                 CashfreeGstinResponse.class, organizationId);
-        boolean valid = Boolean.TRUE.equals(cf.getValid());
+        boolean valid = cf.isValid();
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("gstin", gstin);
         metadata.put("valid", valid);

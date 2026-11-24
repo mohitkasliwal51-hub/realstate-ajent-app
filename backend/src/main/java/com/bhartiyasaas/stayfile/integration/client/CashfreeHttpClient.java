@@ -41,7 +41,7 @@ public class CashfreeHttpClient {
             @Value("${stayfile.verification.cashfree.client-id:}") String clientId,
             @Value("${stayfile.verification.cashfree.client-secret:}") String clientSecret,
             @Value("${stayfile.verification.cashfree.base-url:https://sandbox.cashfree.com/verification}") String baseUrl,
-            @Value("${stayfile.verification.cashfree.api-version:2024-01-01}") String apiVersion,
+            @Value("${stayfile.verification.cashfree.api-version:2024-12-01}") String apiVersion,
             @Value("${stayfile.verification.cashfree.signature:}") String signature) {
         this.restClient = restClient;
         this.integrationLogService = integrationLogService;
@@ -49,7 +49,7 @@ public class CashfreeHttpClient {
         this.clientId = clientId != null ? clientId.trim() : "";
         this.clientSecret = clientSecret != null ? clientSecret.trim() : "";
         this.baseUrl = baseUrl != null ? baseUrl.replaceAll("/+$", "") : "https://sandbox.cashfree.com/verification";
-        this.apiVersion = apiVersion != null && !apiVersion.trim().isEmpty() ? apiVersion.trim() : "2024-01-01";
+        this.apiVersion = apiVersion != null && !apiVersion.trim().isEmpty() ? apiVersion.trim() : "2024-12-01";
         this.signature = signature != null ? signature.trim() : "";
     }
 

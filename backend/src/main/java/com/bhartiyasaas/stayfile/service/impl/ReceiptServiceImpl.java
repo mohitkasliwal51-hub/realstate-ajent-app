@@ -56,8 +56,8 @@ public class ReceiptServiceImpl implements ReceiptService {
         Lease lease = leaseRepository.findByIdAndOrganizationId(request.getLeaseId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lease not found with ID: " + request.getLeaseId()));
 
-        if (lease.getStatus() != LeaseStatus.ACTIVE) {
-            throw new IllegalStateException("Receipts can only be issued for active leases");
+        if (lease.getStatus() == LeaseStatus.TERMINATED || lease.getStatus() == LeaseStatus.CANCELLED || lease.getStatus() == LeaseStatus.EXPIRED) {
+            throw new IllegalStateException("Receipts cannot be issued for terminated, cancelled, or expired leases");
         }
         if (!lease.getTenant().getId().equals(request.getTenantId())) {
             throw new IllegalArgumentException("Receipt tenant does not match the lease");

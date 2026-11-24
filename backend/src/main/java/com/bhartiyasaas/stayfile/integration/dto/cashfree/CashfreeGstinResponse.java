@@ -31,4 +31,10 @@ public class CashfreeGstinResponse {
     @JsonProperty("reference_id") private Object referenceId;
     private String message;
     public String getReferenceIdAsString() { return referenceId == null ? null : String.valueOf(referenceId); }
+
+    public boolean isValid() {
+        return Boolean.TRUE.equals(valid)
+                || "ACTIVE".equalsIgnoreCase(status)
+                || (gstin != null && !gstin.isBlank() && (message == null || !message.toLowerCase().contains("invalid")));
+    }
 }
