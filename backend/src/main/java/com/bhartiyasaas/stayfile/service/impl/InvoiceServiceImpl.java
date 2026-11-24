@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -37,6 +38,10 @@ import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.InvoiceService;
 import com.bhartiyasaas.stayfile.service.PdfGeneratorService;
+import com.bhartiyasaas.stayfile.service.PaymentGatewayProvider;
+import com.bhartiyasaas.stayfile.dto.response.PaymentLinkResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -52,6 +57,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final InvoiceMapper invoiceMapper;
     private final PdfGeneratorService pdfGeneratorService;
     private final TenantAccessService tenantAccessService;
+    private final PaymentGatewayProvider paymentGatewayProvider;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -336,6 +343,67 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + id));
         tenantAccessService.validateTenantOwnership(invoice.getTenant(), "invoice");
         return pdfGeneratorService.generateInvoicePdf(invoice);
+    }
+
+    @Override
+    @Transactional
+    public PaymentLinkResponse getOrCreatePaymentLink(UUID invoiceId, SecurityUser currentUser) {
+        UUID organizationId = currentUser.getOrganizationId();
+        Invoice invoice = invoiceRepository.findByIdAndOrganizationId(invoiceId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + invoiceId));
+        tenantAccessService.validateTenantOwnership(invoice.getTenant(), "invoice");
+
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw new BadRequestException("Invoice is already fully paid");
+        }
+
+        String cachedUrl = null;
+        if (invoice.getMetadata() != null && !invoice.getMetadata().isBlank()) {
+            try {
+                Map<String, Object> metadata = objectMapper.readValue(
+                        invoice.getMetadata(), new TypeReference<Map<String, Object>>() {});
+                Object linkStatus = metadata.get("link_status");
+                if (!"EXPIRED".equalsIgnoreCase(String.valueOf(linkStatus))) {
+                    Object url = metadata.get("link_url");
+                    if (url != null) cachedUrl = String.valueOf(url);
+                }
+            } catch (Exception ex) {
+                cachedUrl = null;
+            }
+        }
+
+        if (cachedUrl == null) {
+            Tenant tenant = invoice.getTenant();
+            BigDecimal balance = invoice.getBalanceDue() != null
+                    ? invoice.getBalanceDue()
+                    : invoice.getTotalAmount().subtract(
+                            invoice.getPaidAmount() != null ? invoice.getPaidAmount() : BigDecimal.ZERO);
+            cachedUrl = paymentGatewayProvider.createPaymentLink(
+                    invoice.getId(), balance, tenant.getFullName(), tenant.getPhone(),
+                    tenant.getEmail(), "Payment for invoice " + invoice.getInvoiceNumber());
+
+            try {
+                Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+                metadata.put("cf_link_id", "INV_" + invoice.getId());
+                metadata.put("link_id", "INV_" + invoice.getId());
+                metadata.put("link_url", cachedUrl);
+                metadata.put("link_status", "ACTIVE");
+                metadata.put("link_amount", balance);
+                metadata.put("expiry_time", null);
+                invoice.setMetadata(objectMapper.writeValueAsString(metadata));
+                invoiceRepository.save(invoice);
+            } catch (Exception ex) {
+                throw new IllegalStateException("Unable to cache payment link metadata", ex);
+            }
+        }
+
+        return PaymentLinkResponse.builder()
+                .invoiceId(invoice.getId())
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .amount(invoice.getBalanceDue() != null ? invoice.getBalanceDue() : invoice.getTotalAmount())
+                .paymentLinkUrl(cachedUrl)
+                .status(invoice.getStatus())
+                .build();
     }
 
     @Override

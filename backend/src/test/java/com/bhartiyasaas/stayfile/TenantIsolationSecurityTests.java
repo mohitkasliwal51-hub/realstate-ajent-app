@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.bhartiyasaas.stayfile.dto.request.MaintenanceTicketCreateRequest;
 import com.bhartiyasaas.stayfile.dto.response.InvoiceResponse;
@@ -46,6 +47,7 @@ import com.bhartiyasaas.stayfile.repository.UnitRepository;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.security.TenantAccessService;
 import com.bhartiyasaas.stayfile.service.impl.InvoiceServiceImpl;
+import com.bhartiyasaas.stayfile.service.PaymentGatewayProvider;
 import com.bhartiyasaas.stayfile.service.impl.MaintenanceTicketServiceImpl;
 import com.bhartiyasaas.stayfile.service.impl.MeterReadingServiceImpl;
 
@@ -76,6 +78,10 @@ class TenantIsolationSecurityTests {
     private InvoiceMapper invoiceMapper;
     @Mock
     private TenantAccessService tenantAccessService;
+    @Mock
+    private PaymentGatewayProvider paymentGatewayProvider;
+    @Mock
+    private ObjectMapper objectMapper;
 
     private UUID orgId;
     private Organization organization;
@@ -164,7 +170,8 @@ class TenantIsolationSecurityTests {
         InvoiceServiceImpl invoiceService = new InvoiceServiceImpl(
                 invoiceRepository, leaseRepository, organizationRepository,
                 tenantRepository, unitRepository,
-                invoiceMapper, null, tenantAccessService
+                invoiceMapper, null, tenantAccessService,
+                paymentGatewayProvider, objectMapper
         );
 
         Invoice myInvoice = Invoice.builder()

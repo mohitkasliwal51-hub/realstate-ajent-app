@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.bhartiyasaas.stayfile.dto.request.InvoiceRequest;
 import com.bhartiyasaas.stayfile.dto.response.InvoiceResponse;
+import com.bhartiyasaas.stayfile.dto.response.PaymentLinkResponse;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 
 public interface InvoiceService {
@@ -16,6 +17,7 @@ public interface InvoiceService {
     InvoiceResponse generateMoveInInvoice(UUID leaseId, SecurityUser currentUser);
     List<InvoiceResponse> generateMonthlyInvoicesForOrganization(SecurityUser currentUser);
     byte[] downloadInvoicePdf(UUID id, SecurityUser currentUser);
+    PaymentLinkResponse getOrCreatePaymentLink(UUID invoiceId, SecurityUser currentUser);
     void processOverdueInvoicesScheduled();
 }
 

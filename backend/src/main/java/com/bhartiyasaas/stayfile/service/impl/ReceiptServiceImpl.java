@@ -17,6 +17,8 @@ import com.bhartiyasaas.stayfile.entity.Organization;
 import com.bhartiyasaas.stayfile.entity.Receipt;
 import com.bhartiyasaas.stayfile.entity.enums.InvoiceStatus;
 import com.bhartiyasaas.stayfile.entity.enums.LeaseStatus;
+import com.bhartiyasaas.stayfile.entity.enums.PaymentMode;
+import com.bhartiyasaas.stayfile.entity.enums.ReceiptType;
 import com.bhartiyasaas.stayfile.exception.BadRequestException;
 import com.bhartiyasaas.stayfile.exception.ResourceNotFoundException;
 import com.bhartiyasaas.stayfile.mapper.ReceiptMapper;
@@ -154,5 +156,71 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with ID: " + receiptId));
         tenantAccessService.validateTenantOwnership(receipt.getTenant(), "payment receipt");
         return pdfGeneratorService.generatePaymentReceiptPdf(receipt);
+    }
+
+    @Override
+    @Transactional
+    public void recordWebhookReceipt(UUID invoiceId, BigDecimal amount, PaymentMode paymentMode,
+                                     String transactionReference, LocalDate paymentDate, String notes) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + invoiceId));
+        UUID organizationId = invoice.getOrganization().getId();
+
+        if (transactionReference != null && !transactionReference.isBlank()
+                && receiptRepository.existsByOrganizationIdAndTransactionReference(
+                        organizationId, transactionReference.trim())) {
+            return;
+        }
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            return;
+        }
+
+        Lease lease = invoice.getLease();
+        if (lease.getStatus() == LeaseStatus.TERMINATED
+                || lease.getStatus() == LeaseStatus.CANCELLED
+                || lease.getStatus() == LeaseStatus.EXPIRED) {
+            throw new IllegalStateException("Receipts cannot be issued for terminated, cancelled, or expired leases");
+        }
+
+        BigDecimal currentPaid = invoice.getPaidAmount() != null ? invoice.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal effectiveAmount = amount.compareTo(currentPaid) > 0
+                ? amount.subtract(currentPaid)
+                : BigDecimal.ZERO;
+        if (effectiveAmount.signum() == 0) {
+            return;
+        }
+        BigDecimal balanceDue = invoice.getTotalAmount().subtract(currentPaid);
+        if (effectiveAmount.compareTo(balanceDue) > 0) {
+            throw new BadRequestException(
+                    "Webhook payment increment (" + effectiveAmount + ") exceeds remaining invoice balance due (" + balanceDue + ")");
+        }
+
+        BigDecimal newPaid = currentPaid.add(effectiveAmount);
+        invoice.setPaidAmount(newPaid);
+        invoice.setStatus(newPaid.compareTo(invoice.getTotalAmount()) >= 0
+                ? InvoiceStatus.PAID : InvoiceStatus.PARTIAL);
+        invoiceRepository.save(invoice);
+
+        String prefix = "REC-" + LocalDate.now().getYear() + "-";
+        int nextSequence = receiptRepository
+                .findTopByOrganizationIdAndReceiptNumberStartingWithOrderByReceiptNumberDesc(
+                        organizationId, prefix)
+                .map(r -> Integer.parseInt(r.getReceiptNumber().substring(prefix.length())) + 1)
+                .orElse(1);
+
+        Receipt receipt = Receipt.builder()
+                .receiptNumber(prefix + String.format("%06d", nextSequence))
+                .organization(invoice.getOrganization())
+                .invoice(invoice)
+                .lease(lease)
+                .tenant(invoice.getTenant())
+                .receiptType(ReceiptType.RENT_PAYMENT)
+                .amount(effectiveAmount)
+                .paymentMode(paymentMode)
+                .transactionReference(transactionReference)
+                .paymentDate(paymentDate)
+                .notes(notes)
+                .build();
+        receiptRepository.save(receipt);
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bhartiyasaas.stayfile.dto.request.InvoiceRequest;
 import com.bhartiyasaas.stayfile.dto.response.ApiResponse;
 import com.bhartiyasaas.stayfile.dto.response.InvoiceResponse;
+import com.bhartiyasaas.stayfile.dto.response.PaymentLinkResponse;
 import com.bhartiyasaas.stayfile.security.SecurityUser;
 import com.bhartiyasaas.stayfile.service.InvoiceService;
 
@@ -104,5 +105,14 @@ public class InvoiceController {
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("filename", "invoice-" + id + ".pdf");
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER', 'AGENT', 'TENANT')")
+    @PostMapping("/{id}/payment-link")
+    public ResponseEntity<ApiResponse<PaymentLinkResponse>> createPaymentLink(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal SecurityUser currentUser) {
+        PaymentLinkResponse response = invoiceService.getOrCreatePaymentLink(id, currentUser);
+        return ResponseEntity.ok(ApiResponse.success(response, "Payment link generated successfully"));
     }
 }

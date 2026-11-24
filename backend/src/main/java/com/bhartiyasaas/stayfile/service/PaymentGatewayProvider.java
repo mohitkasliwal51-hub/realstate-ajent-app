@@ -12,5 +12,5 @@ public interface PaymentGatewayProvider {
     /**
      * Verifies payment status from gateway webhook.
      */
-    boolean verifyWebhookSignature(String rawPayload, String signatureHeader);
+    boolean verifyWebhookSignature(String timestamp, String rawPayload, String signatureHeader);
 }
